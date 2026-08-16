@@ -27,11 +27,56 @@ enum UserRole {
   MINISTRY_OF_HEALTH
 }
 
+enum InsurancePlanStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PatientInsuranceStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
+enum CoverageType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum ChargeStatus {
+  PENDING
+  INSURANCE_CALCULATED
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+enum ServiceCategory {
+  CONSULTATION
+  LABORATORY
+  RADIOLOGY
+  PHARMACY
+  DENTAL
+  PROCEDURE
+  OTHER
+}
+
+enum DepartmentType {
+  GENERAL
+  LABORATORY
+  RADIOLOGY
+  PHARMACY
+  DENTAL
+  NURSING
+  RECEPTION
+  OTHER
+}
+
 enum PatientSessionStatus {
   ACTIVE
   CLOSED
 }
-
 
 enum PatientGender {
   MALE
@@ -162,7 +207,7 @@ model User {
   encounters        Encounter[]        @relation("EncounterProvider")
   appointments      Appointment[]      @relation("AppointmentProvider")
   clinicalNotes     ClinicalNote[]
-  patientSessions PatientSession[]
+  patientSessions   PatientSession[]
   diagnoses         Diagnosis[]
   prescriptions     Prescription[]
   labRequests       LabRequest[]       @relation("LabRequestedBy")
@@ -195,9 +240,9 @@ model Facility {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users        User[]
-  encounters   Encounter[]
-  appointments Appointment[]
+  users           User[]
+  encounters      Encounter[]
+  appointments    Appointment[]
   patientSessions PatientSession[]
 
   @@index([name])
@@ -230,11 +275,13 @@ model Patient {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  cards PatientCard[]
+  cards   PatientCard[]
+  charges Charge[]
 
-  appointments Appointment[]
-  encounters   Encounter[]
-  patientSessions PatientSession[]
+  appointments      Appointment[]
+  encounters        Encounter[]
+  patientSessions   PatientSession[]
+  patientInsurances PatientInsurance[]
 
   allergies         Allergy[]
   medicalConditions MedicalCondition[]
@@ -346,7 +393,8 @@ model Encounter {
   updatedAt DateTime @updatedAt
 
   clinicalNotes     ClinicalNote[]
-  sessions PatientSession[]
+  sessions          PatientSession[]
+  charges           Charge[]
   diagnoses         Diagnosis[]
   prescriptions     Prescription[]
   labRequests       LabRequest[]
@@ -737,7 +785,6 @@ model MedicalDocument {
   @@index([type])
 }
 
-
 model PatientSession {
   id String @id @default(uuid())
 
@@ -745,7 +792,7 @@ model PatientSession {
   patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
 
   userId String
-  user   User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   facilityId String
   facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict)
@@ -755,8 +802,8 @@ model PatientSession {
 
   status PatientSessionStatus @default(ACTIVE)
 
-  startedAt      DateTime @default(now())
-  lastActivityAt DateTime @default(now())
+  startedAt      DateTime  @default(now())
+  lastActivityAt DateTime  @default(now())
   closedAt       DateTime?
 
   createdAt DateTime @default(now())
@@ -766,5 +813,265 @@ model PatientSession {
   @@index([userId])
   @@index([facilityId])
   @@index([encounterId])
+  @@index([status])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | DEPARTMENT
+ * |--------------------------------------------------------------------------
+ */
+
+model Department {
+  id String @id @default(uuid())
+
+  name String
+  code String @unique
+
+  type DepartmentType
+
+  description String?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  services Service[]
+
+  @@index([name])
+  @@index([type])
+  @@index([isActive])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | SERVICE
+ * |--------------------------------------------------------------------------
+ */
+
+model Service {
+  id String @id @default(uuid())
+
+  code String @unique
+  name String
+
+  description String?
+
+  category ServiceCategory
+
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  prices             ServicePrice[]
+  charges            Charge[]
+  insuranceCoverages InsuranceCoverage[]
+
+  @@index([name])
+  @@index([category])
+  @@index([departmentId])
+  @@index([isActive])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | SERVICE PRICE
+ * |--------------------------------------------------------------------------
+ */
+
+model ServicePrice {
+  id String @id @default(uuid())
+
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  amount   Decimal @db.Decimal(12, 2)
+  currency String  @default("RWF")
+
+  effectiveFrom DateTime  @default(now())
+  effectiveTo   DateTime?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  charges   Charge[]
+
+  @@index([serviceId])
+  @@index([isActive])
+  @@index([effectiveFrom])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | CHARGE
+ * |--------------------------------------------------------------------------
+ */
+
+model Charge {
+  id String @id @default(uuid())
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  encounterId String
+  encounter   Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  servicePriceId String
+  servicePrice   ServicePrice @relation(fields: [servicePriceId], references: [id], onDelete: Restrict)
+
+  quantity Int @default(1)
+
+  /**
+   * |--------------------------------------------------------------------------
+   * | Financial snapshot
+   * |--------------------------------------------------------------------------
+   */
+
+  unitPrice Decimal @db.Decimal(12, 2)
+
+  subtotal Decimal @db.Decimal(12, 2)
+
+  insuranceAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  patientAmount Decimal @db.Decimal(12, 2)
+
+  currency String @default("RWF")
+
+  status ChargeStatus @default(PENDING)
+
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([patientId])
+  @@index([encounterId])
+  @@index([serviceId])
+  @@index([servicePriceId])
+  @@index([status])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | INSURANCE PROVIDER
+ * |--------------------------------------------------------------------------
+ */
+
+model InsuranceProvider {
+  id String @id @default(uuid())
+
+  name String
+  code String @unique
+
+  phone String?
+  email String?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  plans InsurancePlan[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | INSURANCE PLAN
+ * |--------------------------------------------------------------------------
+ */
+
+model InsurancePlan {
+  id String @id @default(uuid())
+
+  providerId String
+  provider   InsuranceProvider @relation(fields: [providerId], references: [id], onDelete: Restrict)
+
+  name String
+  code String @unique
+
+  status InsurancePlanStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  coverages         InsuranceCoverage[]
+  patientInsurances PatientInsurance[]
+
+  @@index([providerId])
+  @@index([status])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | INSURANCE COVERAGE
+ * |--------------------------------------------------------------------------
+ */
+
+model InsuranceCoverage {
+  id String @id @default(uuid())
+
+  planId String
+  plan   InsurancePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  coverageType CoverageType
+
+  coverageValue Decimal @db.Decimal(12, 2)
+
+  maxAmount Decimal? @db.Decimal(12, 2)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([planId, serviceId])
+  @@index([planId])
+  @@index([serviceId])
+  @@index([isActive])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | PATIENT INSURANCE
+ * |--------------------------------------------------------------------------
+ */
+
+model PatientInsurance {
+  id String @id @default(uuid())
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  planId String
+  plan   InsurancePlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  membershipNumber String
+
+  status PatientInsuranceStatus @default(ACTIVE)
+
+  validFrom DateTime?
+  validTo   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([planId, membershipNumber])
+  @@index([patientId])
+  @@index([planId])
   @@index([status])
 }
