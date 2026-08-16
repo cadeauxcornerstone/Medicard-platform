@@ -6,12 +6,6 @@ import {
   unblockCard,
 } from "../services/card.service.js";
 
-/*
-|--------------------------------------------------------------------------
-| CREATE CARD
-|--------------------------------------------------------------------------
-*/
-
 export const create = async (req, res, next) => {
   try {
     const card = await createCard(req.body);
@@ -24,13 +18,6 @@ export const create = async (req, res, next) => {
     next(error);
   }
 };
-
-
-/*
-|--------------------------------------------------------------------------
-| GET CARD BY UID
-|--------------------------------------------------------------------------
-*/
 
 export const getByUid = async (req, res, next) => {
   try {
@@ -45,54 +32,9 @@ export const getByUid = async (req, res, next) => {
   }
 };
 
-
-/*
-|--------------------------------------------------------------------------
-| IDENTIFY CARD
-|--------------------------------------------------------------------------
-|
-| This endpoint is called by the Python NFC service.
-|
-| Successful card:
-|
-| Python
-|   ↓
-| Express
-|   ↓
-| PostgreSQL
-|   ↓
-| Patient found
-|   ↓
-| Socket.IO
-|   ↓
-| React frontend
-|
-| Failed/unregistered card:
-|
-| Python
-|   ↓
-| Express
-|   ↓
-| PostgreSQL
-|   ↓
-| Card not found
-|   ↓
-| Socket.IO
-|   ↓
-| React frontend
-|
-|--------------------------------------------------------------------------
-*/
-
 export const identify = async (req, res, next) => {
   try {
     const { cardUid } = req.body;
-
-    /*
-    |--------------------------------------------------------------------------
-    | Validate request
-    |--------------------------------------------------------------------------
-    */
 
     if (!cardUid) {
       return res.status(400).json({
@@ -101,146 +43,89 @@ export const identify = async (req, res, next) => {
       });
     }
 
+    /*
+     * TEMPORARY DEVELOPMENT CONTEXT
+     *
+     * Later this MUST come from req.user
+     * after JWT authentication is connected.
+     */
+    const userId =
+      req.user?.id || req.body.userId;
+
+    const facilityId =
+      req.user?.facilityId || req.body.facilityId;
+
+    const role =
+      req.user?.role || req.body.role;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authenticated user is required",
+      });
+    }
+
+    if (!facilityId) {
+      return res.status(400).json({
+        success: false,
+        message: "Facility is required",
+      });
+    }
+
+    if (!role) {
+      return res.status(400).json({
+        success: false,
+        message: "User role is required",
+      });
+    }
+
+    const result = await identifyCard({
+      cardUid,
+      userId,
+      facilityId,
+      role,
+    });
 
     /*
-    |--------------------------------------------------------------------------
-    | Get Socket.IO instance
-    |--------------------------------------------------------------------------
-    */
-
+     * Notify connected React frontends
+     */
     const io = req.app.get("io");
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Identify card
-    |--------------------------------------------------------------------------
-    */
-
-    const card = await identifyCard(cardUid);
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Prepare safe response
-    |--------------------------------------------------------------------------
-    */
-
-    const responseData = {
-      card: {
-        id: card.id,
-        cardUid: card.cardUid,
-        status: card.status,
-        lastUsedAt: card.lastUsedAt,
-      },
-
-      patient: card.patient,
-    };
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Notify React frontend
-    |--------------------------------------------------------------------------
-    */
 
     if (io) {
       io.emit("patient:identified", {
         success: true,
-        message: "Card identified successfully",
-        data: responseData,
+        message: "Patient identified successfully",
+        data: result,
       });
-
-      console.log(
-        `📡 Socket.IO → patient:identified → ${card.patient.firstName} ${card.patient.lastName}`
-      );
-    } else {
-      console.warn(
-        "⚠️ Socket.IO instance not available."
-      );
     }
 
-
     /*
-    |--------------------------------------------------------------------------
-    | Keep REST response for Python
-    |--------------------------------------------------------------------------
-    */
-
-    return res.status(200).json({
+     * Keep REST response for Python NFC service
+     */
+    res.json({
       success: true,
-      message: "Card identified successfully",
-      data: responseData,
+      message: "Patient identified successfully",
+      data: result,
     });
-
   } catch (error) {
-
-    /*
-    |--------------------------------------------------------------------------
-    | Get Socket.IO instance
-    |--------------------------------------------------------------------------
-    */
-
     const io = req.app.get("io");
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Determine frontend error type
-    |--------------------------------------------------------------------------
-    */
-
-    let code = "IDENTIFICATION_ERROR";
-
-
-    if (error.statusCode === 404) {
-      code = "CARD_NOT_REGISTERED";
-    }
-
-    if (error.statusCode === 403) {
-      code = "CARD_NOT_ALLOWED";
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Notify React frontend
-    |--------------------------------------------------------------------------
-    */
 
     if (io) {
       io.emit("card:identification-failed", {
         success: false,
-        code,
+        code:
+          error.statusCode === 404
+            ? "CARD_NOT_REGISTERED"
+            : error.statusCode === 403
+              ? "CARD_NOT_ALLOWED"
+              : "IDENTIFICATION_ERROR",
         message: error.message,
       });
-
-      console.log(
-        `📡 Socket.IO → card:identification-failed → ${code}`
-      );
-    } else {
-      console.warn(
-        "⚠️ Socket.IO instance not available."
-      );
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Keep existing REST error response for Python
-    |--------------------------------------------------------------------------
-    */
-
-    return next(error);
+    next(error);
   }
 };
-
-
-/*
-|--------------------------------------------------------------------------
-| BLOCK CARD
-|--------------------------------------------------------------------------
-*/
 
 export const block = async (req, res, next) => {
   try {
@@ -255,13 +140,6 @@ export const block = async (req, res, next) => {
     next(error);
   }
 };
-
-
-/*
-|--------------------------------------------------------------------------
-| UNBLOCK CARD
-|--------------------------------------------------------------------------
-*/
 
 export const unblock = async (req, res, next) => {
   try {
