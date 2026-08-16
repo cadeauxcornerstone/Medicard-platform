@@ -1,0 +1,1646 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+:root {
+  font-family: "Inter", system-ui, sans-serif;
+  color: #102a2a;
+  background: #f5f8f7;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* =========================
+   LOGIN
+========================= */
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  position: relative;
+  overflow: hidden;
+  background: #f5f8f7;
+}
+
+.login-background {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      circle at 15% 20%,
+      rgba(12, 119, 91, 0.1),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 85% 80%,
+      rgba(12, 119, 91, 0.08),
+      transparent 30%
+    );
+}
+
+.login-container {
+  width: min(100%, 480px);
+  position: relative;
+  z-index: 1;
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  margin-bottom: 28px;
+}
+
+.brand-mark {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: #087f5b;
+  color: white;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 10px 25px rgba(8, 127, 91, 0.2);
+}
+
+.brand-mark.small {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  box-shadow: none;
+}
+
+.login-brand h1 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -1px;
+}
+
+.login-brand h1 span,
+.sidebar-brand strong span {
+  color: #087f5b;
+}
+
+.login-brand p {
+  margin: 3px 0 0;
+  color: #71817f;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.login-card {
+  background: white;
+  border: 1px solid #e4ebe8;
+  border-radius: 22px;
+  padding: 34px;
+  box-shadow: 0 25px 70px rgba(22, 55, 49, 0.1);
+}
+
+.login-header {
+  display: flex;
+  gap: 15px;
+  align-items: flex-start;
+  margin-bottom: 30px;
+}
+
+.security-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #e9f6f1;
+  color: #087f5b;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.login-header h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.login-header p {
+  margin: 6px 0 0;
+  color: #71817f;
+  font-size: 14px;
+}
+
+.role-section > label,
+.field > label,
+.field-label-row label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 9px;
+}
+
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+  margin-bottom: 25px;
+}
+
+.role-button {
+  border: 1px solid #dfe7e4;
+  background: #fff;
+  color: #4c625e;
+  border-radius: 11px;
+  padding: 11px 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: 0.18s ease;
+}
+
+.role-button:hover {
+  border-color: #087f5b;
+  color: #087f5b;
+}
+
+.role-button.selected {
+  background: #e8f5f0;
+  color: #087f5b;
+  border-color: #087f5b;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.field input {
+  width: 100%;
+  height: 48px;
+  border: 1px solid #dfe7e4;
+  border-radius: 11px;
+  padding: 0 14px;
+  outline: none;
+  color: #183331;
+  background: #fcfdfd;
+  transition: 0.18s ease;
+}
+
+.field input:focus {
+  border-color: #087f5b;
+  box-shadow: 0 0 0 3px rgba(8, 127, 91, 0.1);
+}
+
+.field-label-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.forgot-button {
+  border: 0;
+  background: transparent;
+  color: #087f5b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.security-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #72827f;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.security-note svg {
+  flex-shrink: 0;
+  color: #087f5b;
+}
+
+.login-button {
+  height: 50px;
+  border: 0;
+  border-radius: 11px;
+  background: #087f5b;
+  color: white;
+  font-weight: 700;
+  transition: 0.18s ease;
+}
+
+.login-button:hover {
+  background: #066b4d;
+  transform: translateY(-1px);
+}
+
+.login-footer {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 25px;
+  color: #91a09d;
+  font-size: 10px;
+}
+
+/* =========================
+   DASHBOARD
+========================= */
+
+.dashboard-layout {
+  min-height: 100vh;
+  display: flex;
+  background: #f5f8f7;
+}
+
+.sidebar {
+  width: 250px;
+  min-height: 100vh;
+  background: #082f29;
+  color: white;
+  padding: 24px 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0 10px 30px;
+}
+
+.sidebar-brand strong {
+  display: block;
+  font-size: 18px;
+}
+
+.sidebar-brand small {
+  display: block;
+  margin-top: 3px;
+  color: #91aaa5;
+  font-size: 10px;
+}
+
+.sidebar-section {
+  flex: 1;
+}
+
+.sidebar-label {
+  display: block;
+  padding: 0 12px 10px;
+  color: #66817b;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.sidebar-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #aac0bb;
+  border-radius: 10px;
+  padding: 11px 12px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 3px;
+}
+
+.sidebar-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+}
+
+.sidebar-item.active {
+  background: #087f5b;
+  color: white;
+}
+
+.sidebar-bottom {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 15px;
+}
+
+.sidebar-item.logout {
+  color: #90aaa5;
+}
+
+.dashboard-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.topbar {
+  height: 78px;
+  background: white;
+  border-bottom: 1px solid #e3ebe8;
+  padding: 0 35px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.eyebrow {
+  color: #087f5b;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.topbar h1 {
+  margin: 3px 0 0;
+  font-size: 19px;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.icon-button {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #e1e9e6;
+  background: white;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: #50645f;
+  position: relative;
+}
+
+.notification span {
+  width: 6px;
+  height: 6px;
+  background: #087f5b;
+  border-radius: 50%;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-left: 10px;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #dcefe8;
+  color: #087f5b;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.user-profile strong,
+.user-profile small {
+  display: block;
+}
+
+.user-profile strong {
+  font-size: 12px;
+}
+
+.user-profile small {
+  color: #81908d;
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+.dashboard-content {
+  padding: 30px 35px 50px;
+  max-width: 1500px;
+}
+
+.welcome-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 25px;
+}
+
+.welcome-row h2 {
+  margin: 4px 0;
+  font-size: 25px;
+  letter-spacing: -0.5px;
+}
+
+.welcome-row p {
+  margin: 0;
+  color: #71817f;
+  font-size: 13px;
+}
+
+.system-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border: 1px solid #dce9e4;
+  border-radius: 20px;
+  background: white;
+  color: #55706a;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  background: #0ca678;
+  border-radius: 50%;
+}
+
+.nfc-card {
+  background: linear-gradient(135deg, #073f35, #087f5b);
+  color: white;
+  border-radius: 18px;
+  padding: 28px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 18px 40px rgba(7, 63, 53, 0.16);
+  margin-bottom: 22px;
+}
+
+.nfc-content {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.nfc-icon {
+  width: 60px;
+  height: 60px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.1);
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+}
+
+.nfc-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  opacity: 0.65;
+}
+
+.nfc-card h3 {
+  margin: 5px 0;
+  font-size: 20px;
+}
+
+.nfc-card p {
+  margin: 0;
+  max-width: 550px;
+  color: rgba(255,255,255,0.72);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.nfc-status {
+  min-width: 170px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  border-left: 1px solid rgba(255,255,255,0.15);
+  padding-left: 30px;
+}
+
+.nfc-status strong {
+  font-size: 11px;
+}
+
+.nfc-status small {
+  color: rgba(255,255,255,0.6);
+  font-size: 10px;
+}
+
+.pulse {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  display: grid;
+  place-items: center;
+}
+
+.pulse span {
+  width: 10px;
+  height: 10px;
+  background: #72e0bb;
+  border-radius: 50%;
+  box-shadow: 0 0 0 7px rgba(114,224,187,0.12);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.stat-card,
+.panel {
+  background: white;
+  border: 1px solid #e2ebe8;
+  border-radius: 15px;
+}
+
+.stat-card {
+  padding: 19px;
+}
+
+.stat-card span,
+.stat-card small {
+  display: block;
+}
+
+.stat-card span {
+  color: #74837f;
+  font-size: 11px;
+}
+
+.stat-card strong {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 25px;
+}
+
+.stat-card small {
+  color: #087f5b;
+  font-size: 10px;
+}
+
+.dashboard-panels {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 18px;
+}
+
+.panel {
+  padding: 22px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 17px;
+  border-bottom: 1px solid #e7edeb;
+}
+
+.panel-header h3 {
+  margin: 5px 0 0;
+  font-size: 16px;
+}
+
+.text-button {
+  border: 0;
+  background: transparent;
+  color: #087f5b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.empty-state {
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #8a9995;
+}
+
+.empty-state svg {
+  color: #b5c5c0;
+  margin-bottom: 10px;
+}
+
+.empty-state strong {
+  color: #516560;
+  font-size: 12px;
+}
+
+.empty-state p {
+  max-width: 300px;
+  margin: 7px 0 0;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.queue-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 0;
+  border-bottom: 1px solid #edf1ef;
+}
+
+.queue-item:last-child {
+  border-bottom: 0;
+}
+
+.queue-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #e8f4f0;
+  color: #087f5b;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.queue-item div:nth-child(2) {
+  flex: 1;
+}
+
+.queue-item strong,
+.queue-item small {
+  display: block;
+}
+
+.queue-item strong {
+  font-size: 11px;
+}
+
+.queue-item small {
+  margin-top: 3px;
+  color: #83918e;
+  font-size: 9px;
+}
+
+.queue-status {
+  background: #fff4db;
+  color: #9a6b12;
+  padding: 5px 8px;
+  border-radius: 20px;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 900px) {
+  .sidebar {
+    width: 210px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard-panels {
+    grid-template-columns: 1fr;
+  }
+
+  .nfc-card {
+    gap: 20px;
+  }
+}
+
+@media (max-width: 700px) {
+  .sidebar {
+    display: none;
+  }
+
+  .topbar {
+    padding: 0 18px;
+  }
+
+  .dashboard-content {
+    padding: 22px 18px;
+  }
+
+  .user-profile {
+    display: none;
+  }
+
+  .welcome-row {
+    align-items: flex-start;
+    gap: 15px;
+    flex-direction: column;
+  }
+
+  .nfc-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .nfc-status {
+    border-left: 0;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    width: 100%;
+    padding: 18px 0 0;
+  }
+
+  .role-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .login-card {
+    padding: 25px 20px;
+  }
+}
+
+.full-width-panel {
+  width: 100%;
+}
+
+/* =========================
+   NFC SCANNER
+========================= */
+
+.nfc-page {
+  min-height: 100vh;
+  background: #f5f8f7;
+}
+
+.nfc-page-header {
+  height: 76px;
+  background: white;
+  border-bottom: 1px solid #e3ebe8;
+  padding: 0 35px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.back-button {
+  border: 0;
+  background: transparent;
+  color: #526662;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.back-button:hover {
+  color: #087f5b;
+}
+
+.nfc-page-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nfc-page-brand strong {
+  display: block;
+  font-size: 17px;
+}
+
+.nfc-page-brand strong span {
+  color: #087f5b;
+}
+
+.nfc-page-brand small {
+  display: block;
+  margin-top: 2px;
+  color: #84928f;
+  font-size: 9px;
+}
+
+.nfc-scanner-content {
+  width: min(100% - 40px, 850px);
+  margin: 0 auto;
+  padding: 55px 0;
+}
+
+.nfc-scanner-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.nfc-scanner-header h1 {
+  margin: 7px 0;
+  font-size: 30px;
+  letter-spacing: -0.7px;
+  color: #102a2a;
+}
+
+.nfc-scanner-header p {
+  margin: 0;
+  color: #71817f;
+  font-size: 13px;
+}
+
+.scanner-card {
+  background: white;
+  border: 1px solid #e0e9e6;
+  border-radius: 22px;
+  padding: 50px 40px 35px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(25, 62, 55, 0.08);
+}
+
+.scanner-visual {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 210px;
+}
+
+.scanner-ring {
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+.scanner-ring.outer {
+  width: 190px;
+  height: 190px;
+  background: rgba(8, 127, 91, 0.055);
+  border: 1px solid rgba(8, 127, 91, 0.1);
+}
+
+.scanner-ring.middle {
+  width: 145px;
+  height: 145px;
+  background: rgba(8, 127, 91, 0.08);
+  border: 1px solid rgba(8, 127, 91, 0.13);
+}
+
+.scanner-icon {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: #087f5b;
+  color: white;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 12px 30px rgba(8, 127, 91, 0.22);
+}
+
+.scanner-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #0ca678;
+}
+
+.scanner-status strong {
+  font-size: 12px;
+  color: #183331;
+}
+
+.scanner-status span:last-child {
+  color: #8a9895;
+  font-size: 11px;
+}
+
+.scanner-instruction {
+  max-width: 500px;
+  margin: 28px auto 0;
+}
+
+.scanner-instruction h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.scanner-instruction p {
+  margin: 9px 0 0;
+  color: #71817f;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.security-message {
+  max-width: 570px;
+  margin: 28px auto 0;
+  padding: 13px 15px;
+  background: #f2f8f6;
+  border: 1px solid #dfece7;
+  border-radius: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 8px;
+  color: #617570;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.security-message svg {
+  color: #087f5b;
+  flex-shrink: 0;
+}
+
+.scanner-help {
+  margin-top: 15px;
+  background: white;
+  border: 1px solid #e1e9e6;
+  border-radius: 15px;
+  padding: 17px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.scanner-help strong {
+  font-size: 11px;
+}
+
+.scanner-help p {
+  margin: 4px 0 0;
+  color: #84918e;
+  font-size: 10px;
+}
+
+.scanner-help button {
+  border: 1px solid #dce6e2;
+  background: white;
+  color: #087f5b;
+  border-radius: 9px;
+  padding: 9px 13px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.scanner-help button:hover {
+  border-color: #087f5b;
+}
+
+@media (max-width: 600px) {
+  .nfc-page-header {
+    padding: 0 18px;
+  }
+
+  .nfc-page-brand {
+    display: none;
+  }
+
+  .nfc-scanner-content {
+    width: min(100% - 28px, 850px);
+    padding: 35px 0;
+  }
+
+  .scanner-card {
+    padding: 35px 20px 25px;
+  }
+
+  .scanner-help {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+}
+
+/* =========================================================
+   MEDCARD NFC IDENTIFICATION
+   Phase 1 — Production UI
+========================================================= */
+
+.patient-identification-panel {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e4e8e5;
+  border-radius: 20px;
+  background: #ffffff;
+  padding: 28px;
+  box-shadow: 0 8px 30px rgba(16, 42, 35, 0.06);
+  transition:
+    box-shadow 0.25s ease,
+    border-color 0.25s ease,
+    transform 0.25s ease;
+}
+
+
+/* =========================================================
+   WAITING STATE
+========================================================= */
+
+.patient-identification-panel.waiting {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  min-height: 150px;
+  border-color: #dfe8e4;
+  background:
+    linear-gradient(
+      135deg,
+      #ffffff 0%,
+      #f8fbfa 100%
+    );
+}
+
+.identification-icon {
+  width: 62px;
+  height: 62px;
+  min-width: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: #e8f5f0;
+  color: #087f5b;
+}
+
+.identification-main {
+  flex: 1;
+}
+
+.identification-main h3 {
+  margin: 5px 0 7px;
+  font-size: 22px;
+  line-height: 1.25;
+  color: #102d28;
+}
+
+.identification-main p {
+  margin: 0;
+  max-width: 620px;
+  color: #667773;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.eyebrow {
+  display: inline-block;
+  color: #54716a;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+
+/* =========================================================
+   READER STATUS
+========================================================= */
+
+.reader-status {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 150px;
+  padding: 12px 15px;
+  border: 1px solid #dce8e3;
+  border-radius: 12px;
+  background: #f7fbf9;
+}
+
+.reader-status-dot {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #11966d;
+  box-shadow: 0 0 0 5px rgba(17, 150, 109, 0.10);
+}
+
+.reader-status-dot::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 1px solid rgba(17, 150, 109, 0.35);
+  animation: medcard-pulse 2s infinite;
+}
+
+.reader-status strong {
+  display: block;
+  color: #173b33;
+  font-size: 13px;
+}
+
+.reader-status small {
+  display: block;
+  margin-top: 2px;
+  color: #7a8985;
+  font-size: 11px;
+}
+
+@keyframes medcard-pulse {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+
+  70% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+}
+
+
+/* =========================================================
+   IDENTIFIED PATIENT
+========================================================= */
+
+.patient-identification-panel.identified {
+  border-color: #cfe7dd;
+  background: #ffffff;
+}
+
+.identified-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid #e8eeeb;
+}
+
+.success-icon {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #e7f6ef;
+  color: #087f5b;
+}
+
+.identified-patient {
+  flex: 1;
+}
+
+.identified-patient h3 {
+  margin: 4px 0 2px;
+  color: #102d28;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.identified-patient p {
+  margin: 0;
+  color: #6c7e78;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.card-status.active {
+  color: #087f5b;
+  background: #e8f6f0;
+}
+
+
+/* =========================================================
+   PATIENT INFORMATION GRID
+========================================================= */
+
+.patient-basic-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.patient-info-item {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #e7ece9;
+  border-radius: 13px;
+  background: #fafcfb;
+}
+
+.patient-info-item span {
+  display: block;
+  margin-bottom: 7px;
+  color: #71817c;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.patient-info-item strong {
+  display: block;
+  overflow: hidden;
+  color: #17352e;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* =========================================================
+   SECURITY NOTICE
+========================================================= */
+
+.identification-notice {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f4faf7;
+  color: #477067;
+  font-size: 13px;
+}
+
+.identification-notice svg {
+  flex-shrink: 0;
+  color: #087f5b;
+}
+
+
+/* =========================================================
+   ACTION BUTTONS
+========================================================= */
+
+.identified-actions,
+.not-registered-actions,
+.error-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.identified-actions button,
+.not-registered-actions button,
+.error-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 43px;
+  padding: 0 17px;
+  border: 1px solid #087f5b;
+  border-radius: 10px;
+  background: #087f5b;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.identified-actions button:hover,
+.not-registered-actions button:hover,
+.error-actions button:hover {
+  background: #066b4d;
+  box-shadow: 0 5px 14px rgba(8, 127, 91, 0.18);
+  transform: translateY(-1px);
+}
+
+.identified-actions button.secondary,
+.not-registered-actions button.secondary {
+  border-color: #d9e1de;
+  background: #ffffff;
+  color: #24463e;
+}
+
+.identified-actions button.secondary:hover,
+.not-registered-actions button.secondary:hover {
+  background: #f7faf9;
+  border-color: #c7d5d0;
+  box-shadow: none;
+}
+
+
+/* =========================================================
+   NOT REGISTERED
+========================================================= */
+
+.patient-identification-panel.not-registered {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  border-color: #eadfca;
+  background:
+    linear-gradient(
+      135deg,
+      #ffffff 0%,
+      #fffcf6 100%
+    );
+}
+
+.not-registered-icon {
+  width: 58px;
+  height: 58px;
+  min-width: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 15px;
+  background: #fff3dc;
+  color: #b47716;
+}
+
+.not-registered-content {
+  flex: 1;
+}
+
+.not-registered-content h3 {
+  margin: 5px 0 7px;
+  color: #302a1d;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.not-registered-content p {
+  max-width: 700px;
+  margin: 0;
+  color: #6e6759;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+
+/* =========================================================
+   CARD STATUS BOX
+========================================================= */
+
+.card-status-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 19px;
+  padding: 14px 16px;
+  border: 1px solid #eadfca;
+  border-radius: 12px;
+  background: rgba(255, 250, 239, 0.8);
+}
+
+.card-status-information span {
+  display: block;
+  margin-bottom: 4px;
+  color: #897d68;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.card-status-information strong {
+  display: block;
+  color: #493c26;
+  font-size: 14px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.status-badge.warning {
+  color: #95630c;
+  background: #f9eacb;
+}
+
+
+/* =========================================================
+   CARD NOT ALLOWED
+========================================================= */
+
+.patient-identification-panel.not-allowed {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  border-color: #ecd9d9;
+  background:
+    linear-gradient(
+      135deg,
+      #ffffff 0%,
+      #fff9f9 100%
+    );
+}
+
+.not-allowed-icon {
+  width: 58px;
+  height: 58px;
+  min-width: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 15px;
+  background: #fceaea;
+  color: #b94a48;
+}
+
+.not-allowed-content {
+  flex: 1;
+}
+
+.not-allowed-content h3 {
+  margin: 5px 0 7px;
+  color: #321f20;
+  font-size: 22px;
+}
+
+.not-allowed-content p {
+  margin: 0;
+  color: #735f60;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.status-badge.restricted {
+  color: #a53e3e;
+  background: #f8dddd;
+}
+
+
+/* =========================================================
+   GENERAL ERROR
+========================================================= */
+
+.patient-identification-panel.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  border-color: #ead8d8;
+  background:
+    linear-gradient(
+      135deg,
+      #ffffff 0%,
+      #fffafa 100%
+    );
+}
+
+.error-icon {
+  width: 58px;
+  height: 58px;
+  min-width: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 15px;
+  background: #fceaea;
+  color: #b94a48;
+}
+
+.error-content {
+  flex: 1;
+}
+
+.error-content h3 {
+  margin: 5px 0 7px;
+  color: #321f20;
+  font-size: 22px;
+}
+
+.error-content p {
+  max-width: 700px;
+  margin: 0;
+  color: #735f60;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+
+/* =========================================================
+   BUTTON ACCESSIBILITY
+========================================================= */
+
+.patient-identification-panel button:focus-visible {
+  outline: 3px solid rgba(8, 127, 91, 0.22);
+  outline-offset: 2px;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 900px) {
+
+  .patient-identification-panel.waiting {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .reader-status {
+    width: 100%;
+  }
+
+  .patient-basic-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+}
+
+
+@media (max-width: 600px) {
+
+  .patient-identification-panel {
+    padding: 20px;
+    border-radius: 16px;
+  }
+
+  .patient-identification-panel.waiting,
+  .patient-identification-panel.not-registered,
+  .patient-identification-panel.not-allowed,
+  .patient-identification-panel.error {
+    flex-direction: column;
+  }
+
+  .patient-basic-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .identified-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .card-status {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .identified-actions,
+  .not-registered-actions,
+  .error-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .identified-actions button,
+  .not-registered-actions button,
+  .error-actions button {
+    width: 100%;
+  }
+
+  .card-status-box {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .status-badge {
+    align-self: flex-start;
+  }
+
+}
