@@ -1,186 +1,206 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  Activity,
+  ArrowRight,
   CheckCircle2,
   CreditCard,
+  LoaderCircle,
   ShieldCheck,
+    Stethoscope,
   UserRound,
+  Wifi,
   XCircle,
-  AlertTriangle,
-  RefreshCw,
-  UserPlus,
 } from "lucide-react";
 
 import { socket } from "../../services/socket";
 
 
-/* =========================================================
-   TYPES
-========================================================= */
+
+type IdentificationState =
+  | "waiting"
+  | "identifying"
+  | "identified"
+  | "not-registered"
+  | "not-allowed"
+  | "error";
 
 interface Patient {
   id: string;
   patientNumber: string;
   firstName: string;
   lastName: string;
-  dateOfBirth: string | null;
-  gender: string;
-  phone: string | null;
-  email: string | null;
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  phone?: string | null;
+  email?: string | null;
 }
 
-interface Card {
+interface CardContext {
   id: string;
   cardUid: string;
   status: string;
-  lastUsedAt: string;
+  lastUsedAt?: string | null;
+}
+
+interface EncounterContext {
+  id: string;
+  status: string;
+  type: string;
+  startedAt: string;
+}
+
+interface SessionContext {
+  id: string;
+  status: string;
+  startedAt: string;
+  lastActivityAt: string;
+}
+
+interface IdentificationData {
+  card: CardContext;
+  patient: Patient;
+  encounter: EncounterContext;
+  session: SessionContext;
 }
 
 interface IdentificationResponse {
   success: boolean;
-  message: string;
-  data?: {
-    card: Card;
-    patient: Patient;
-  };
+  message?: string;
+  data: IdentificationData;
 }
 
-interface IdentificationFailedResponse {
+interface IdentificationFailure {
   success: boolean;
-  code:
-    | "CARD_NOT_REGISTERED"
-    | "CARD_NOT_ALLOWED"
-    | "IDENTIFICATION_ERROR";
-  message: string;
+  code?: string;
+  message?: string;
 }
 
-type ScanState =
-  | "waiting"
-  | "identified"
-  | "not-registered"
-  | "not-allowed"
-  | "error";
+const formatDateTime = (
+  value?: string | null
+) => {
+  if (!value) {
+    return "Not available";
+  }
 
+  const date = new Date(value);
 
-/* =========================================================
-   COMPONENT
-========================================================= */
+  if (Number.isNaN(date.getTime())) {
+    return "Not available";
+  }
+
+  return date.toLocaleString([], {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+};
+
+const getInitials = (
+  firstName: string,
+  lastName: string
+) => {
+  return `${firstName?.[0] || ""}${lastName?.[0] || ""}`
+    .toUpperCase();
+};
 
 function PatientIdentificationPanel() {
   const navigate = useNavigate();
 
-  const [scanState, setScanState] =
-    useState<ScanState>("waiting");
+  const [state, setState] =
+    useState<IdentificationState>("waiting");
 
   const [patient, setPatient] =
     useState<Patient | null>(null);
 
   const [card, setCard] =
-    useState<Card | null>(null);
+    useState<CardContext | null>(null);
 
-  const [message, setMessage] =
+  const [encounter, setEncounter] =
+    useState<EncounterContext | null>(null);
+
+  const [session, setSession] =
+    useState<SessionContext | null>(null);
+
+  const [errorMessage, setErrorMessage] =
     useState("");
 
-
-  /* =======================================================
-     SOCKET.IO — REAL-TIME NFC EVENTS
-  ======================================================== */
+  /*
+  |--------------------------------------------------------------------------
+  | REAL-TIME NFC IDENTIFICATION
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
-
-    /* -----------------------------------------------
-       SUCCESSFUL CARD IDENTIFICATION
-    ------------------------------------------------ */
-
     const handlePatientIdentified = (
       response: IdentificationResponse
     ) => {
-      if (!response.success || !response.data) {
-        setScanState("error");
-
-        setMessage(
-          response.message ||
-            "Unable to identify this MedCard."
-        );
-
+      if (
+        !response?.success ||
+        !response.data
+      ) {
         return;
       }
 
-      setPatient(response.data.patient);
-      setCard(response.data.card);
+      const {
+        patient,
+        card,
+        encounter,
+        session,
+      } = response.data;
 
-      setScanState("identified");
+      setPatient(patient);
+      setCard(card);
+      setEncounter(encounter);
+      setSession(session);
 
-      setMessage("");
+      setErrorMessage("");
+
+      setState("identified");
     };
-
-
-    /* -----------------------------------------------
-       FAILED CARD IDENTIFICATION
-    ------------------------------------------------ */
 
     const handleIdentificationFailed = (
-      response: IdentificationFailedResponse
+      response: IdentificationFailure
     ) => {
-
-      /*
-       * Card does not exist in the MedCard database.
-       */
-      if (
-        response.code === "CARD_NOT_REGISTERED"
-      ) {
-        setPatient(null);
-        setCard(null);
-
-        setScanState("not-registered");
-
-        setMessage(
-          "This MedCard is not registered in the MedCard system."
-        );
-
-        return;
-      }
-
-
-      /*
-       * Card exists but cannot currently be used.
-       * This covers blocked / expired / restricted cards.
-       */
-      if (
-        response.code === "CARD_NOT_ALLOWED"
-      ) {
-        setPatient(null);
-        setCard(null);
-
-        setScanState("not-allowed");
-
-        setMessage(
-          response.message ||
-            "This MedCard cannot currently be used."
-        );
-
-        return;
-      }
-
-
-      /*
-       * Any unexpected identification problem.
-       */
       setPatient(null);
       setCard(null);
+      setEncounter(null);
+      setSession(null);
 
-      setScanState("error");
+      if (
+        response.code ===
+        "CARD_NOT_REGISTERED"
+      ) {
+        setState("not-registered");
 
-      setMessage(
+        setErrorMessage(
+          response.message ||
+            "This MedCard is not registered."
+        );
+
+        return;
+      }
+
+      if (
+        response.code ===
+        "CARD_NOT_ALLOWED"
+      ) {
+        setState("not-allowed");
+
+        setErrorMessage(
+          response.message ||
+            "This MedCard cannot be used."
+        );
+
+        return;
+      }
+
+      setState("error");
+
+      setErrorMessage(
         response.message ||
-          "Unable to identify this MedCard."
+          "Unable to identify the MedCard."
       );
     };
-
-
-    /* -----------------------------------------------
-       REGISTER SOCKET EVENTS
-    ------------------------------------------------ */
 
     socket.on(
       "patient:identified",
@@ -192,13 +212,7 @@ function PatientIdentificationPanel() {
       handleIdentificationFailed
     );
 
-
-    /* -----------------------------------------------
-       CLEANUP
-    ------------------------------------------------ */
-
     return () => {
-
       socket.off(
         "patient:identified",
         handlePatientIdentified
@@ -208,71 +222,148 @@ function PatientIdentificationPanel() {
         "card:identification-failed",
         handleIdentificationFailed
       );
-
     };
-
   }, []);
 
+  /*
+  |--------------------------------------------------------------------------
+  | OPEN PATIENT WORKSPACE
+  |--------------------------------------------------------------------------
+  |
+  | IMPORTANT:
+  |
+  | The encounter ID comes directly from the backend
+  | identification response.
+  |
+  | This allows the workspace to operate on the exact
+  | encounter created/reused during the NFC tap.
+  |
+  */
 
-  /* =======================================================
-     RESET SCANNER
-  ======================================================== */
+  const openPatientWorkspace = () => {
+    if (!patient?.id) {
+      return;
+    }
 
-  const resetScanner = () => {
-    setScanState("waiting");
+    if (!encounter?.id) {
+      setErrorMessage(
+        "No active clinical encounter was returned by the MedCard system."
+      );
 
-    setPatient(null);
+      setState("error");
 
-    setCard(null);
+      return;
+    }
 
-    setMessage("");
+    navigate(
+      `/patients/${patient.id}?encounterId=${encodeURIComponent(
+        encounter.id
+      )}`
+    );
   };
 
+  /*
+  |--------------------------------------------------------------------------
+  | RESET
+  |--------------------------------------------------------------------------
+  */
 
-  /* =======================================================
-     WAITING FOR CARD
-  ======================================================== */
+  const resetIdentification = () => {
+    setState("waiting");
 
-  if (scanState === "waiting") {
+    setPatient(null);
+    setCard(null);
+    setEncounter(null);
+    setSession(null);
+
+    setErrorMessage("");
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | WAITING
+  |--------------------------------------------------------------------------
+  */
+
+  if (state === "waiting") {
     return (
-      <section className="patient-identification-panel waiting">
+      <section className="patient-identification-panel">
 
-        <div className="identification-icon">
-          <CreditCard size={30} />
-        </div>
-
-
-        <div className="identification-main">
-
-          <span className="eyebrow">
-            MEDCARD IDENTIFICATION
-          </span>
-
-          <h3>
-            Ready for MedCard
-          </h3>
-
-          <p>
-            Tap the patient's MedCard on the
-            connected reader. Their authorized
-            information will appear automatically.
-          </p>
-
-        </div>
-
-
-        <div className="reader-status">
-
-          <span className="reader-status-dot" />
+        <div className="identification-header">
 
           <div>
-            <strong>
-              Reader ready
-            </strong>
+            <span className="eyebrow">
+              MEDCARD IDENTIFICATION
+            </span>
 
-            <small>
-              Waiting for card
-            </small>
+            <h2>
+              Tap a MedCard
+            </h2>
+
+            <p>
+              Place the patient's MedCard on the
+              connected NFC reader to securely
+              identify the patient.
+            </p>
+          </div>
+
+          <div className="identification-status waiting">
+            <span />
+            Reader ready
+          </div>
+
+        </div>
+
+        <div className="identification-waiting">
+
+          <div className="nfc-reader-visual">
+
+            <div className="nfc-wave wave-one" />
+            <div className="nfc-wave wave-two" />
+            <div className="nfc-wave wave-three" />
+
+            <div className="nfc-card-icon">
+              <CreditCard size={34} />
+            </div>
+
+          </div>
+
+          <div className="identification-waiting-content">
+
+            <span className="eyebrow">
+              NFC READER
+            </span>
+
+            <h3>
+              Ready to identify patient
+            </h3>
+
+            <p>
+              Waiting for a registered MedCard.
+              The patient record will appear
+              automatically after identification.
+            </p>
+
+            <div className="identification-flow">
+
+              <span>
+                NFC
+              </span>
+
+              <ArrowRight size={15} />
+
+              <span>
+                Patient
+              </span>
+
+              <ArrowRight size={15} />
+
+              <span>
+                Clinical session
+              </span>
+
+            </div>
+
           </div>
 
         </div>
@@ -281,32 +372,104 @@ function PatientIdentificationPanel() {
     );
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | IDENTIFYING
+  |--------------------------------------------------------------------------
+  */
 
-  /* =======================================================
-     PATIENT IDENTIFIED
-  ======================================================== */
+  if (state === "identifying") {
+    return (
+      <section className="patient-identification-panel">
+
+        <div className="identification-processing">
+
+          <div className="processing-icon">
+            <LoaderCircle
+              size={30}
+              className="spin"
+            />
+          </div>
+
+          <span className="eyebrow">
+            NFC IDENTIFICATION
+          </span>
+
+          <h2>
+            Identifying MedCard
+          </h2>
+
+          <p>
+            Connecting the card identity with
+            the MedCard clinical record.
+          </p>
+
+        </div>
+
+      </section>
+    );
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | IDENTIFIED
+  |--------------------------------------------------------------------------
+  */
 
   if (
-    scanState === "identified" &&
+    state === "identified" &&
     patient &&
-    card
+    card &&
+    encounter
   ) {
     return (
       <section className="patient-identification-panel identified">
 
-        {/* HEADER */}
+        <div className="identification-header">
 
-        <div className="identified-header">
-
-          <div className="success-icon">
-            <CheckCircle2 size={27} />
-          </div>
-
-
-          <div className="identified-patient">
+          <div>
 
             <span className="eyebrow">
               PATIENT IDENTIFIED
+            </span>
+
+            <h2>
+              Clinical record ready
+            </h2>
+
+            <p>
+              The MedCard identity has been
+              verified and linked to an active
+              clinical encounter.
+            </p>
+
+          </div>
+
+          <div className="identification-status success">
+
+            <CheckCircle2 size={16} />
+
+            Verified
+
+          </div>
+
+        </div>
+
+        {/* PATIENT SUMMARY */}
+
+        <div className="identified-patient-card">
+
+          <div className="identified-patient-avatar">
+            {getInitials(
+              patient.firstName,
+              patient.lastName
+            )}
+          </div>
+
+          <div className="identified-patient-main">
+
+            <span className="eyebrow">
+              PATIENT
             </span>
 
             <h3>
@@ -314,124 +477,200 @@ function PatientIdentificationPanel() {
               {patient.lastName}
             </h3>
 
-            <p>
-              {patient.patientNumber}
-            </p>
+            <div className="identified-patient-meta">
+
+              <span>
+                {patient.patientNumber}
+              </span>
+
+              {patient.gender && (
+                <span>
+                  {patient.gender}
+                </span>
+              )}
+
+              {patient.phone && (
+                <span>
+                  {patient.phone}
+                </span>
+              )}
+
+            </div>
 
           </div>
 
+          <div className="identified-patient-security">
 
-          <div className="card-status active">
+            <ShieldCheck size={20} />
 
-            <ShieldCheck size={15} />
+            <div>
 
-            <span>
-              {card.status}
-            </span>
+              <strong>
+                Identity verified
+              </strong>
 
-          </div>
+              <span>
+                MedCard {card.cardUid}
+              </span>
 
-        </div>
-
-
-        {/* PATIENT INFORMATION */}
-
-        <div className="patient-basic-grid">
-
-          <div className="patient-info-item">
-
-            <span>
-              Patient Number
-            </span>
-
-            <strong>
-              {patient.patientNumber}
-            </strong>
-
-          </div>
-
-
-          <div className="patient-info-item">
-
-            <span>
-              Gender
-            </span>
-
-            <strong>
-              {patient.gender}
-            </strong>
-
-          </div>
-
-
-          <div className="patient-info-item">
-
-            <span>
-              Phone
-            </span>
-
-            <strong>
-              {patient.phone || "Not provided"}
-            </strong>
-
-          </div>
-
-
-          <div className="patient-info-item">
-
-            <span>
-              MedCard Status
-            </span>
-
-            <strong>
-              {card.status}
-            </strong>
+            </div>
 
           </div>
 
         </div>
 
+        {/* CLINICAL CONTEXT */}
 
-        {/* SECURITY NOTICE */}
+        <div className="identification-context-grid">
 
-        <div className="identification-notice">
+          <div className="identification-context-card">
 
-          <ShieldCheck size={17} />
+            <div className="context-card-icon">
+              <CreditCard size={18} />
+            </div>
 
-          <span>
-            Patient identity verified through
-            the MedCard system.
-          </span>
+            <div>
+
+              <span>
+                Card
+              </span>
+
+              <strong>
+                {card.status}
+              </strong>
+
+              <small>
+                UID {card.cardUid}
+              </small>
+
+            </div>
+
+          </div>
+
+          <div className="identification-context-card">
+
+            <div className="context-card-icon">
+              <Activity size={18} />
+            </div>
+
+            <div>
+
+              <span>
+                Encounter
+              </span>
+
+              <strong>
+                {encounter.status}
+              </strong>
+
+              <small>
+                {encounter.type}
+              </small>
+
+            </div>
+
+          </div>
+
+          <div className="identification-context-card">
+
+            <div className="context-card-icon">
+              <UserRound size={18} />
+            </div>
+
+            <div>
+
+              <span>
+                Session
+              </span>
+
+              <strong>
+                {session?.status ||
+                  "ACTIVE"}
+              </strong>
+
+              <small>
+                Clinical session
+              </small>
+
+            </div>
+
+          </div>
 
         </div>
 
+        {/* TIMELINE */}
+
+        <div className="identification-session-info">
+
+          <div>
+
+            <span>
+              Card last used
+            </span>
+
+            <strong>
+              {formatDateTime(
+                card.lastUsedAt
+              )}
+            </strong>
+
+          </div>
+
+          <div>
+
+            <span>
+              Encounter started
+            </span>
+
+            <strong>
+              {formatDateTime(
+                encounter.startedAt
+              )}
+            </strong>
+
+          </div>
+
+          <div>
+
+            <span>
+              Session updated
+            </span>
+
+            <strong>
+              {formatDateTime(
+                session?.lastActivityAt
+              )}
+            </strong>
+
+          </div>
+
+        </div>
 
         {/* ACTIONS */}
 
-        <div className="identified-actions">
+        <div className="identification-actions">
 
           <button
             type="button"
-            onClick={() => {
-              navigate(
-                `/patients/${patient.id}`
-              );
-            }}
+            className="identification-secondary-button"
+            onClick={resetIdentification}
           >
-            <UserRound size={17} />
+            <Wifi size={17} />
 
-            Open Patient Profile
+            Scan another card
           </button>
-
 
           <button
             type="button"
-            className="secondary"
-            onClick={resetScanner}
+            className="identification-primary-button"
+            onClick={openPatientWorkspace}
           >
-            <RefreshCw size={17} />
+            <Stethoscope size={17} />
 
-            Scan Another Card
+            Open Patient Workspace
+
+            <ArrowRight size={17} />
+
           </button>
 
         </div>
@@ -440,223 +679,53 @@ function PatientIdentificationPanel() {
     );
   }
 
-
-  /* =======================================================
-     CARD NOT REGISTERED
-  ======================================================== */
-
-  if (
-    scanState === "not-registered"
-  ) {
-    return (
-      <section className="patient-identification-panel not-registered">
-
-        {/* ICON */}
-
-        <div className="not-registered-icon">
-          <XCircle size={32} />
-        </div>
-
-
-        {/* CONTENT */}
-
-        <div className="not-registered-content">
-
-          <span className="eyebrow">
-            CARD IDENTIFICATION
-          </span>
-
-          <h3>
-            MedCard not recognized
-          </h3>
-
-          <p>
-            This card is not registered in the
-            MedCard system. The patient's profile
-            cannot be opened until the card has
-            been registered.
-          </p>
-
-
-          {/* STATUS */}
-
-          <div className="card-status-box">
-
-            <div className="card-status-information">
-
-              <span>
-                Card status
-              </span>
-
-              <strong>
-                Not registered
-              </strong>
-
-            </div>
-
-
-            <span className="status-badge warning">
-              ACTION REQUIRED
-            </span>
-
-          </div>
-
-
-          {/* ACTIONS */}
-
-          <div className="not-registered-actions">
-
-            <button
-              type="button"
-              onClick={() =>
-                navigate("/patients/register")
-              }
-            >
-              <UserPlus size={17} />
-
-              Register Patient
-            </button>
-
-
-            <button
-              type="button"
-              className="secondary"
-              onClick={resetScanner}
-            >
-              <RefreshCw size={17} />
-
-              Scan Again
-            </button>
-
-          </div>
-
-        </div>
-
-      </section>
-    );
-  }
-
-
-  /* =======================================================
-     CARD NOT ALLOWED
-     BLOCKED / EXPIRED / RESTRICTED
-  ======================================================== */
-
-  if (
-    scanState === "not-allowed"
-  ) {
-    return (
-      <section className="patient-identification-panel not-allowed">
-
-        <div className="not-allowed-icon">
-          <AlertTriangle size={32} />
-        </div>
-
-
-        <div className="not-allowed-content">
-
-          <span className="eyebrow">
-            CARD ACCESS RESTRICTED
-          </span>
-
-          <h3>
-            This MedCard cannot be used
-          </h3>
-
-          <p>
-            {message}
-          </p>
-
-
-          <div className="card-status-box">
-
-            <div className="card-status-information">
-
-              <span>
-                Card status
-              </span>
-
-              <strong>
-                Access restricted
-              </strong>
-
-            </div>
-
-
-            <span className="status-badge restricted">
-              RESTRICTED
-            </span>
-
-          </div>
-
-
-          <div className="not-registered-actions">
-
-            <button
-              type="button"
-              className="secondary"
-              onClick={resetScanner}
-            >
-              <RefreshCw size={17} />
-
-              Scan Another Card
-            </button>
-
-          </div>
-
-        </div>
-
-      </section>
-    );
-  }
-
-
-  /* =======================================================
-     GENERAL ERROR
-  ======================================================== */
+  /*
+  |--------------------------------------------------------------------------
+  | FAILURE
+  |--------------------------------------------------------------------------
+  */
 
   return (
-    <section className="patient-identification-panel error">
+    <section className="patient-identification-panel">
 
-      <div className="error-icon">
-        <XCircle size={32} />
-      </div>
+      <div className="identification-error">
 
+        <div className="identification-error-icon">
 
-      <div className="error-content">
-
-        <span className="eyebrow">
-          IDENTIFICATION ERROR
-        </span>
-
-        <h3>
-          We couldn't identify this card
-        </h3>
-
-        <p>
-          {message ||
-            "Something went wrong while identifying the MedCard. Please try again."}
-        </p>
-
-
-        <div className="error-actions">
-
-          <button
-            type="button"
-            onClick={resetScanner}
-          >
-            <RefreshCw size={17} />
-
-            Try Again
-          </button>
+          <XCircle size={28} />
 
         </div>
+
+        <span className="eyebrow">
+          NFC IDENTIFICATION
+        </span>
+
+        <h2>
+          {state === "not-registered"
+            ? "Card not registered"
+            : state === "not-allowed"
+              ? "Card not allowed"
+              : "Identification failed"}
+        </h2>
+
+        <p>
+          {errorMessage ||
+            "The MedCard could not be identified."}
+        </p>
+
+        <button
+          type="button"
+          onClick={resetIdentification}
+        >
+          <Wifi size={17} />
+
+          Try another card
+        </button>
 
       </div>
 
     </section>
   );
 }
-
 
 export default PatientIdentificationPanel;

@@ -2,18 +2,43 @@ import "dotenv/config";
 
 const requiredEnv = [
   "DATABASE_URL",
-  "JWT_SECRET"
+  "JWT_SECRET",
 ];
 
 for (const variable of requiredEnv) {
   if (!process.env[variable]) {
-    throw new Error(`Missing required environment variable: ${variable}`);
+    throw new Error(
+      `Missing required environment variable: ${variable}`
+    );
   }
 }
 
 export const env = {
   databaseUrl: process.env.DATABASE_URL,
-  port: Number(process.env.PORT || 5000),
-  nodeEnv: process.env.NODE_ENV || "development",
-  jwtSecret: process.env.JWT_SECRET
+
+  port: Number(
+    process.env.PORT || 5000
+  ),
+
+  nodeEnv:
+    process.env.NODE_ENV ||
+    "development",
+
+  jwtSecret:
+    process.env.JWT_SECRET,
+
+  /*
+  |--------------------------------------------------------------------------
+  | NFC DEVELOPMENT CONTEXT
+  |--------------------------------------------------------------------------
+  */
+
+  nfcDemoUserId:
+    process.env.NFC_DEMO_USER_ID || null,
+
+  nfcDemoFacilityId:
+    process.env.NFC_DEMO_FACILITY_ID || null,
+
+  nfcDemoRole:
+    process.env.NFC_DEMO_ROLE || null,
 };

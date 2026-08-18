@@ -18,6 +18,7 @@ export const createLabRequest = async ({
   tests,
 }) => {
   /*
+  
   |--------------------------------------------------------------------------
   | Verify encounter
   |--------------------------------------------------------------------------
@@ -138,7 +139,8 @@ export const createLabRequest = async ({
       clinicalIndication:
         clinicalIndication || null,
 
-      notes: notes || null,
+      notes:
+        notes || null,
 
       tests: {
         create: tests.map((test) => ({
@@ -157,6 +159,18 @@ export const createLabRequest = async ({
           firstName: true,
           lastName: true,
           role: true,
+        },
+      },
+
+      patient: true,
+
+      encounter: {
+        select: {
+          id: true,
+          patientId: true,
+          facilityId: true,
+          status: true,
+          startedAt: true,
         },
       },
     },
@@ -257,6 +271,8 @@ export const getLabRequestById = async (
         encounter: {
           select: {
             id: true,
+            patientId: true,
+            facilityId: true,
             status: true,
             startedAt: true,
             completedAt: true,
@@ -280,6 +296,123 @@ export const getLabRequestById = async (
 
 /*
 |--------------------------------------------------------------------------
+| GET LABORATORY WORK QUEUE
+|--------------------------------------------------------------------------
+|
+| Returns laboratory requests belonging to one facility.
+|
+| By default:
+|
+| REQUESTED
+| SAMPLE_COLLECTED
+| PROCESSING
+|
+| Completed and cancelled requests are excluded unless
+| a specific status is requested.
+|
+*/
+
+export const getLaboratoryQueue = async ({
+  facilityId,
+  status,
+}) => {
+  if (!facilityId) {
+    const error = new Error(
+      "Facility is required to load the laboratory queue."
+    );
+
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const allowedStatuses = [
+    "REQUESTED",
+    "SAMPLE_COLLECTED",
+    "PROCESSING",
+    "COMPLETED",
+    "CANCELLED",
+  ];
+
+  let statuses;
+
+  if (status) {
+    if (!allowedStatuses.includes(status)) {
+      const error = new Error(
+        "Invalid laboratory request status."
+      );
+
+      error.statusCode = 400;
+      throw error;
+    }
+
+    statuses = [status];
+  } else {
+    statuses = [
+      "REQUESTED",
+      "SAMPLE_COLLECTED",
+      "PROCESSING",
+    ];
+  }
+
+  return prisma.labRequest.findMany({
+    where: {
+      status: {
+        in: statuses,
+      },
+
+      encounter: {
+        facilityId,
+      },
+    },
+
+    include: {
+      patient: true,
+
+      tests: true,
+
+      results: {
+        include: {
+          performedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              role: true,
+            },
+          },
+        },
+      },
+
+      requestedBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+        },
+      },
+
+      encounter: {
+        select: {
+          id: true,
+          patientId: true,
+          facilityId: true,
+          status: true,
+          startedAt: true,
+          completedAt: true,
+        },
+      },
+    },
+
+    orderBy: {
+      requestedAt: "asc",
+    },
+  });
+};
+
+
+/*
+|--------------------------------------------------------------------------
 | UPDATE LAB REQUEST STATUS
 |--------------------------------------------------------------------------
 */
@@ -292,6 +425,11 @@ export const updateLabRequestStatus = async (
     await prisma.labRequest.findUnique({
       where: {
         id: labRequestId,
+      },
+
+      include: {
+        tests: true,
+        results: true,
       },
     });
 
@@ -321,10 +459,113 @@ export const updateLabRequestStatus = async (
     throw error;
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | Terminal states
+  |--------------------------------------------------------------------------
+  */
+
+  if (
+    request.status === "COMPLETED" ||
+    request.status === "CANCELLED"
+  ) {
+    const error = new Error(
+      `Cannot change a ${request.status.toLowerCase()} laboratory request.`
+    );
+
+    error.statusCode = 409;
+    throw error;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Prevent premature completion
+  |--------------------------------------------------------------------------
+  */
+
+  if (status === "COMPLETED") {
+    if (request.tests.length === 0) {
+      const error = new Error(
+        "Laboratory request has no requested tests."
+      );
+
+      error.statusCode = 409;
+      throw error;
+    }
+
+    const activeResults =
+      request.results.filter(
+        (result) =>
+          result.status !== "CANCELLED"
+      );
+
+    const allTestsCompleted =
+      request.tests.every((test) =>
+        activeResults.some(
+          (result) =>
+            result.testName.toLowerCase() ===
+            test.testName.toLowerCase()
+        )
+      );
+
+    if (!allTestsCompleted) {
+      const error = new Error(
+        "Cannot complete laboratory request until all requested tests have results."
+      );
+
+      error.statusCode = 409;
+      throw error;
+    }
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Validate workflow progression
+  |--------------------------------------------------------------------------
+  */
+
+  const workflow = [
+    "REQUESTED",
+    "SAMPLE_COLLECTED",
+    "PROCESSING",
+    "COMPLETED",
+  ];
+
+  if (status !== "CANCELLED") {
+    const currentIndex =
+      workflow.indexOf(request.status);
+
+    const requestedIndex =
+      workflow.indexOf(status);
+
+    if (
+      requestedIndex < currentIndex
+    ) {
+      const error = new Error(
+        `Cannot move laboratory request from ${request.status} back to ${status}.`
+      );
+
+      error.statusCode = 409;
+      throw error;
+    }
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Completion timestamp
+  |--------------------------------------------------------------------------
+  */
+
   const completedAt =
     status === "COMPLETED"
       ? new Date()
       : request.completedAt;
+
+  /*
+  |--------------------------------------------------------------------------
+  | Update request
+  |--------------------------------------------------------------------------
+  */
 
   return prisma.labRequest.update({
     where: {
@@ -337,8 +578,29 @@ export const updateLabRequestStatus = async (
     },
 
     include: {
+      patient: true,
       tests: true,
       results: true,
+
+      requestedBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+        },
+      },
+
+      encounter: {
+        select: {
+          id: true,
+          patientId: true,
+          facilityId: true,
+          status: true,
+          startedAt: true,
+          completedAt: true,
+        },
+      },
     },
   });
 };

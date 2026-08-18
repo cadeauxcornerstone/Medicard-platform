@@ -4,6 +4,7 @@ import {
   create,
   getByEncounter,
   getById,
+  getQueue,
   updateStatus,
 } from "../controllers/lab-request.controller.js";
 
@@ -12,7 +13,7 @@ const router = express.Router();
 
 /*
 |--------------------------------------------------------------------------
-| Create laboratory request
+| CREATE LABORATORY REQUEST
 |--------------------------------------------------------------------------
 */
 
@@ -24,7 +25,7 @@ router.post(
 
 /*
 |--------------------------------------------------------------------------
-| Get laboratory requests for encounter
+| GET LABORATORY REQUESTS FOR ENCOUNTER
 |--------------------------------------------------------------------------
 */
 
@@ -36,7 +37,28 @@ router.get(
 
 /*
 |--------------------------------------------------------------------------
-| Get one laboratory request
+| GET LABORATORY WORK QUEUE
+|--------------------------------------------------------------------------
+|
+| Example:
+|
+| GET /api/v1/lab-requests?facilityId=...
+|
+| Optional:
+|
+| GET /api/v1/lab-requests?facilityId=...&status=PROCESSING
+|
+*/
+
+router.get(
+  "/lab-requests",
+  getQueue
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| GET ONE LABORATORY REQUEST
 |--------------------------------------------------------------------------
 */
 
@@ -48,7 +70,7 @@ router.get(
 
 /*
 |--------------------------------------------------------------------------
-| Update laboratory request status
+| UPDATE LABORATORY REQUEST STATUS
 |--------------------------------------------------------------------------
 */
 

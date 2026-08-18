@@ -27,6 +27,40 @@ enum UserRole {
   MINISTRY_OF_HEALTH
 }
 
+enum PaymentAuditAction {
+  CREATED
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum WalletStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+  REFUND
+}
+
+enum PaymentMethod {
+  CASH
+  MEDCARD
+  MOBILE_MONEY
+  CARD
+  BANK
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
 enum InsurancePlanStatus {
   ACTIVE
   INACTIVE
@@ -215,6 +249,8 @@ model User {
   radiologyRequests RadiologyRequest[] @relation("RadiologyRequestedBy")
   radiologyReports  RadiologyReport[]
   uploadedDocuments MedicalDocument[]  @relation("DocumentUploader")
+  paymentAuditLogs  PaymentAuditLog[]
+  dispensingRecords DispensingRecord[] @relation("DispensedBy")
 
   @@index([email])
   @@index([facilityId])
@@ -265,6 +301,7 @@ model Patient {
   gender      PatientGender @default(UNKNOWN)
   phone       String?
   email       String?
+  wallet      Wallet?
 
   /**
    * | Basic identity information
@@ -275,8 +312,9 @@ model Patient {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  cards   PatientCard[]
-  charges Charge[]
+  cards    PatientCard[]
+  charges  Charge[]
+  payments Payment[]
 
   appointments      Appointment[]
   encounters        Encounter[]
@@ -543,7 +581,8 @@ model Prescription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items PrescriptionItem[]
+  items             PrescriptionItem[]
+  dispensingRecords DispensingRecord[]
 
   @@index([patientId])
   @@index([encounterId])
@@ -570,9 +609,59 @@ model PrescriptionItem {
   quantity       String?
   instructions   String?
 
-  createdAt DateTime @default(now())
+  createdAt       DateTime         @default(now())
+  dispensingItems DispensingItem[]
 
   @@index([prescriptionId])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | DISPENSING RECORD
+ * |--------------------------------------------------------------------------
+ */
+
+model DispensingRecord {
+  id String @id @default(uuid())
+
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  dispensedById String
+  dispensedBy   User   @relation("DispensedBy", fields: [dispensedById], references: [id])
+
+  notes String?
+
+  dispensedAt DateTime @default(now())
+
+  items DispensingItem[]
+
+  @@index([prescriptionId])
+  @@index([dispensedById])
+  @@index([dispensedAt])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | DISPENSING ITEM
+ * |--------------------------------------------------------------------------
+ */
+
+model DispensingItem {
+  id String @id @default(uuid())
+
+  dispensingRecordId String
+  dispensingRecord   DispensingRecord @relation(fields: [dispensingRecordId], references: [id], onDelete: Cascade)
+
+  prescriptionItemId String
+  prescriptionItem   PrescriptionItem @relation(fields: [prescriptionItemId], references: [id], onDelete: Restrict)
+
+  quantityDispensed String
+
+  createdAt DateTime @default(now())
+
+  @@index([dispensingRecordId])
+  @@index([prescriptionItemId])
 }
 
 /**
@@ -953,11 +1042,51 @@ model Charge {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  payments Payment[]
+
   @@index([patientId])
   @@index([encounterId])
   @@index([serviceId])
   @@index([servicePriceId])
   @@index([status])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | PAYMENT
+ * |--------------------------------------------------------------------------
+ */
+
+model Payment {
+  id String @id @default(uuid())
+
+  chargeId String
+  charge   Charge @relation(fields: [chargeId], references: [id], onDelete: Restrict)
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  amount   Decimal @db.Decimal(12, 2)
+  currency String  @default("RWF")
+
+  method PaymentMethod
+  status PaymentStatus @default(PENDING)
+
+  reference String? @unique
+
+  notes String?
+
+  paidAt DateTime?
+
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  paymentAuditLogs PaymentAuditLog[]
+
+  @@index([chargeId])
+  @@index([patientId])
+  @@index([status])
+  @@index([method])
+  @@index([reference])
 }
 
 /**
@@ -1074,4 +1203,94 @@ model PatientInsurance {
   @@index([patientId])
   @@index([planId])
   @@index([status])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | MEDCARD WALLET
+ * |--------------------------------------------------------------------------
+ */
+
+model Wallet {
+  id String @id @default(uuid())
+
+  patientId String  @unique
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  balance  Decimal @default(0) @db.Decimal(12, 2)
+  currency String  @default("RWF")
+
+  status WalletStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions WalletTransaction[]
+
+  @@index([status])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | WALLET TRANSACTION
+ * |--------------------------------------------------------------------------
+ */
+
+model WalletTransaction {
+  id String @id @default(uuid())
+
+  walletId String
+  wallet   Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  type WalletTransactionType
+
+  amount Decimal @db.Decimal(12, 2)
+
+  balanceBefore Decimal @db.Decimal(12, 2)
+  balanceAfter  Decimal @db.Decimal(12, 2)
+
+  reference   String?
+  description String?
+
+  createdAt DateTime @default(now())
+
+  @@index([walletId])
+  @@index([type])
+  @@index([reference])
+}
+
+/**
+ * |--------------------------------------------------------------------------
+ * | PAYMENT AUDIT LOG
+ * |--------------------------------------------------------------------------
+ */
+
+model PaymentAuditLog {
+  id String @id @default(uuid())
+
+  paymentId String
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  action PaymentAuditAction
+
+  previousStatus PaymentStatus?
+  newStatus      PaymentStatus?
+
+  amount   Decimal? @db.Decimal(12, 2)
+  currency String?
+
+  reference String?
+  reason    String?
+
+  actorId String?
+  actor   User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([paymentId])
+  @@index([action])
+  @@index([actorId])
+  @@index([createdAt])
 }

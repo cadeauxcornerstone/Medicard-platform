@@ -2,8 +2,10 @@ import {
   createLabRequest,
   getLabRequestsByEncounter,
   getLabRequestById,
+  getLaboratoryQueue,
   updateLabRequestStatus,
 } from "../services/lab-request.service.js";
+
 
 /*
 |--------------------------------------------------------------------------
@@ -11,7 +13,11 @@ import {
 |--------------------------------------------------------------------------
 */
 
-export const create = async (req, res, next) => {
+export const create = async (
+  req,
+  res,
+  next
+) => {
   try {
     const {
       patientId,
@@ -23,8 +29,12 @@ export const create = async (req, res, next) => {
     const encounterId =
       req.params.encounterId;
 
-    // Development fallback.
-    // Later this comes from authenticated req.user.
+    /*
+     * Development fallback.
+     *
+     * Later this will come from authenticated req.user.
+     */
+
     const requestedById =
       req.user?.id ||
       req.body.requestedById;
@@ -40,11 +50,15 @@ export const create = async (req, res, next) => {
     if (!patientId) {
       return res.status(400).json({
         success: false,
-        message: "patientId is required",
+        message:
+          "patientId is required",
       });
     }
 
-    if (!Array.isArray(tests) || tests.length === 0) {
+    if (
+      !Array.isArray(tests) ||
+      tests.length === 0
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -130,6 +144,55 @@ export const getById = async (
 
 /*
 |--------------------------------------------------------------------------
+| GET LABORATORY WORK QUEUE
+|--------------------------------------------------------------------------
+*/
+
+export const getQueue = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    /*
+     * Development fallback.
+     *
+     * Later facilityId will come from req.user.
+     */
+
+    const facilityId =
+      req.user?.facilityId ||
+      req.query.facilityId;
+
+    const status =
+      req.query.status;
+
+    if (!facilityId) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Facility is required to load the laboratory queue.",
+      });
+    }
+
+    const requests =
+      await getLaboratoryQueue({
+        facilityId,
+        status,
+      });
+
+    res.json({
+      success: true,
+      data: requests,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+/*
+|--------------------------------------------------------------------------
 | UPDATE LAB REQUEST STATUS
 |--------------------------------------------------------------------------
 */
@@ -140,12 +203,14 @@ export const updateStatus = async (
   next
 ) => {
   try {
-    const { status } = req.body;
+    const { status } =
+      req.body;
 
     if (!status) {
       return res.status(400).json({
         success: false,
-        message: "Status is required",
+        message:
+          "Status is required",
       });
     }
 

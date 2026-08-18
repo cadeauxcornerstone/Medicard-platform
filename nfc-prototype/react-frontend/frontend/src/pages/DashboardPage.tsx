@@ -11,14 +11,21 @@ import {
   Bell,
   Search,
   Wifi,
-  Radio,
-  CreditCard as CardIcon,
 } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
 
 import PatientIdentificationPanel from "../components/nfc/PatientIdentificationPanel";
 import { socket } from "../services/socket";
+
+
+type Role =
+  | "Reception"
+  | "Doctor"
+  | "Nurse"
+  | "Laboratory"
+  | "Pharmacy"
+  | "Cashier";
 
 
 type NfcDashboardState =
@@ -29,11 +36,81 @@ type NfcDashboardState =
   | "error";
 
 
+const CURRENT_ROLE_KEY =
+  "medcard_current_role";
+
+
 function DashboardPage() {
+
   const navigate = useNavigate();
 
+
+  /*
+  |--------------------------------------------------------------------------
+  | CURRENT PROTOTYPE ROLE
+  |--------------------------------------------------------------------------
+  */
+
+  const [currentRole, setCurrentRole] =
+    useState<Role>(() => {
+
+      const storedRole =
+        localStorage.getItem(
+          CURRENT_ROLE_KEY
+        );
+
+      if (
+        storedRole === "Reception" ||
+        storedRole === "Doctor" ||
+        storedRole === "Nurse" ||
+        storedRole === "Laboratory" ||
+        storedRole === "Pharmacy" ||
+        storedRole === "Cashier"
+      ) {
+        return storedRole;
+      }
+
+      return "Reception";
+    });
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | NFC STATE
+  |--------------------------------------------------------------------------
+  */
+
   const [nfcState, setNfcState] =
-    useState<NfcDashboardState>("waiting");
+    useState<NfcDashboardState>(
+      "waiting"
+    );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | KEEP ROLE IN SYNC
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(() => {
+
+    const storedRole =
+      localStorage.getItem(
+        CURRENT_ROLE_KEY
+      );
+
+    if (
+      storedRole === "Reception" ||
+      storedRole === "Doctor" ||
+      storedRole === "Nurse" ||
+      storedRole === "Laboratory" ||
+      storedRole === "Pharmacy" ||
+      storedRole === "Cashier"
+    ) {
+      setCurrentRole(storedRole);
+    }
+
+  }, []);
 
 
   /*
@@ -43,27 +120,54 @@ function DashboardPage() {
   */
 
   useEffect(() => {
-    const handlePatientIdentified = () => {
-      setNfcState("identified");
-    };
+
+    const handlePatientIdentified =
+      () => {
+
+        setNfcState(
+          "identified"
+        );
+
+      };
 
 
-    const handleIdentificationFailed = (response: {
-      success: boolean;
-      code?: string;
-    }) => {
-      if (response.code === "CARD_NOT_REGISTERED") {
-        setNfcState("not-registered");
-        return;
-      }
+    const handleIdentificationFailed =
+      (response: {
+        success: boolean;
+        code?: string;
+      }) => {
 
-      if (response.code === "CARD_NOT_ALLOWED") {
-        setNfcState("not-allowed");
-        return;
-      }
+        if (
+          response.code ===
+          "CARD_NOT_REGISTERED"
+        ) {
 
-      setNfcState("error");
-    };
+          setNfcState(
+            "not-registered"
+          );
+
+          return;
+        }
+
+
+        if (
+          response.code ===
+          "CARD_NOT_ALLOWED"
+        ) {
+
+          setNfcState(
+            "not-allowed"
+          );
+
+          return;
+        }
+
+
+        setNfcState(
+          "error"
+        );
+
+      };
 
 
     socket.on(
@@ -78,6 +182,7 @@ function DashboardPage() {
 
 
     return () => {
+
       socket.off(
         "patient:identified",
         handlePatientIdentified
@@ -87,7 +192,9 @@ function DashboardPage() {
         "card:identification-failed",
         handleIdentificationFailed
       );
+
     };
+
   }, []);
 
 
@@ -95,18 +202,26 @@ function DashboardPage() {
   |--------------------------------------------------------------------------
   | WAITING STATE
   |--------------------------------------------------------------------------
-  |
-  | The large NFC visual and empty activity panel are shown
-  | ONLY while the system is waiting for a card.
-  |
   */
 
   const showWaitingExperience =
     nfcState === "waiting";
 
 
+  /*
+  |--------------------------------------------------------------------------
+  | ROLE LABEL
+  |--------------------------------------------------------------------------
+  */
+
+  const roleLabel =
+    currentRole.toUpperCase();
+
+
   return (
+
     <div className="dashboard-layout">
+
 
       {/* =====================================================
           SIDEBAR
@@ -114,13 +229,18 @@ function DashboardPage() {
 
       <aside className="sidebar">
 
+
         <div className="sidebar-brand">
 
           <div className="brand-mark small">
+
             <Activity size={20} />
+
           </div>
 
+
           <div>
+
             <strong>
               Med<span>Card</span>
             </strong>
@@ -128,6 +248,7 @@ function DashboardPage() {
             <small>
               Digital Health Platform
             </small>
+
           </div>
 
         </div>
@@ -144,8 +265,11 @@ function DashboardPage() {
             type="button"
             className="sidebar-item active"
           >
+
             <LayoutDashboard size={19} />
+
             Dashboard
+
           </button>
 
 
@@ -153,18 +277,26 @@ function DashboardPage() {
             type="button"
             className="sidebar-item"
           >
+
             <Users size={19} />
+
             Patients
+
           </button>
 
 
           <button
             type="button"
             className="sidebar-item"
-            onClick={() => navigate("/nfc")}
+            onClick={() =>
+              navigate("/nfc")
+            }
           >
+
             <Wifi size={19} />
+
             NFC Scanner
+
           </button>
 
 
@@ -172,8 +304,11 @@ function DashboardPage() {
             type="button"
             className="sidebar-item"
           >
+
             <CalendarDays size={19} />
+
             Appointments
+
           </button>
 
 
@@ -181,8 +316,11 @@ function DashboardPage() {
             type="button"
             className="sidebar-item"
           >
+
             <FileText size={19} />
+
             Medical Records
+
           </button>
 
 
@@ -190,8 +328,11 @@ function DashboardPage() {
             type="button"
             className="sidebar-item"
           >
+
             <CreditCard size={19} />
+
             Payments
+
           </button>
 
         </div>
@@ -199,22 +340,37 @@ function DashboardPage() {
 
         <div className="sidebar-bottom">
 
+
           <button
             type="button"
             className="sidebar-item"
           >
+
             <Settings size={19} />
+
             Settings
+
           </button>
 
 
           <button
             type="button"
             className="sidebar-item logout"
-            onClick={() => navigate("/login")}
+            onClick={() => {
+
+              localStorage.removeItem(
+                CURRENT_ROLE_KEY
+              );
+
+              navigate("/login");
+
+            }}
           >
+
             <LogOut size={19} />
+
             Sign out
+
           </button>
 
         </div>
@@ -228,15 +384,22 @@ function DashboardPage() {
 
       <main className="dashboard-main">
 
-        {/* TOP BAR */}
+
+        {/* ===================================================
+            TOP BAR
+        ==================================================== */}
 
         <header className="topbar">
+
 
           <div>
 
             <span className="eyebrow">
-              RECEPTION WORKSPACE
+
+              {roleLabel} WORKSPACE
+
             </span>
+
 
             <h1>
               MedCard Dashboard
@@ -247,12 +410,15 @@ function DashboardPage() {
 
           <div className="topbar-actions">
 
+
             <button
               type="button"
               className="icon-button"
               aria-label="Search"
             >
+
               <Search size={19} />
+
             </button>
 
 
@@ -261,21 +427,30 @@ function DashboardPage() {
               className="icon-button"
               aria-label="Notifications"
             >
+
               <Bell size={19} />
+
             </button>
 
 
             <div className="user-profile">
 
+
               <div className="avatar">
-                R
+
+                {currentRole
+                  .charAt(0)
+                  .toUpperCase()}
+
               </div>
+
 
               <div>
 
                 <strong>
-                  Reception
+                  {currentRole}
                 </strong>
+
 
                 <small>
                   Current workspace
@@ -296,23 +471,43 @@ function DashboardPage() {
 
         <section className="dashboard-content">
 
-          {/* PAGE INTRO */}
+
+          {/* =================================================
+              PAGE INTRO
+          ================================================== */}
 
           <div className="welcome-row">
+
 
             <div>
 
               <span className="eyebrow">
-                PATIENT IDENTIFICATION
+
+                {currentRole ===
+                "Reception"
+                  ? "PATIENT IDENTIFICATION"
+                  : `${roleLabel} WORKSPACE`}
+
               </span>
 
+
               <h2>
-                Reception Dashboard
+
+                {currentRole ===
+                "Reception"
+                  ? "Reception Dashboard"
+                  : `${currentRole} Dashboard`}
+
               </h2>
 
+
               <p>
-                Identify patients using the connected
-                MedCard reader.
+
+                {currentRole ===
+                "Reception"
+                  ? "Identify patients using the connected MedCard reader."
+                  : `Manage your ${currentRole.toLowerCase()} workflow through the MedCard platform.`}
+
               </p>
 
             </div>
@@ -337,34 +532,33 @@ function DashboardPage() {
 
 
           {/* =================================================
-              NFC TAP VISUAL
-              ONLY VISIBLE BEFORE A CARD IS TAPPED
-          ================================================== */}
-
-          
-              
-           
-
-          {/* =================================================
-              EMPTY ACTIVITY
-              ONLY VISIBLE BEFORE FIRST CARD TAP
+              NFC ACTIVITY
           ================================================== */}
 
           {showWaitingExperience && (
+
             <section className="dashboard-panels nfc-empty-activity">
+
 
               <div className="panel full-width-panel">
 
+
                 <div className="panel-header">
+
 
                   <div>
 
                     <span className="eyebrow">
+
                       NFC ACTIVITY
+
                     </span>
 
+
                     <h3>
+
                       Recent card activity
+
                     </h3>
 
                   </div>
@@ -374,18 +568,27 @@ function DashboardPage() {
 
                 <div className="empty-state">
 
+
                   <div className="empty-state-icon">
+
                     <Wifi size={27} />
+
                   </div>
 
+
                   <strong>
+
                     No card activity yet
+
                   </strong>
 
+
                   <p>
+
                     NFC identification events will
                     appear here after a MedCard is
                     tapped on the reader.
+
                   </p>
 
                 </div>
@@ -393,6 +596,7 @@ function DashboardPage() {
               </div>
 
             </section>
+
           )}
 
         </section>
@@ -400,6 +604,7 @@ function DashboardPage() {
       </main>
 
     </div>
+
   );
 }
 

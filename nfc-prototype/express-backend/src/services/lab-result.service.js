@@ -1,4 +1,127 @@
+
 import prisma from "../config/database.js";
+
+/*
+|--------------------------------------------------------------------------
+| HELPER — FINALIZE LAB REQUEST IF ALL TESTS HAVE RESULTS
+|--------------------------------------------------------------------------
+|
+| A laboratory request is considered complete when every requested
+| laboratory test has at least one non-cancelled result.
+|
+| Result verification remains a separate clinical step.
+|
+*/
+
+const finalizeLabRequestIfComplete = async (
+  tx,
+  labRequestId
+) => {
+  const labRequest =
+    await tx.labRequest.findUnique({
+      where: {
+        id: labRequestId,
+      },
+
+      include: {
+        tests: true,
+        results: {
+          where: {
+            status: {
+              not: "CANCELLED",
+            },
+          },
+        },
+      },
+    });
+
+  if (!labRequest) {
+    return null;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | No tests means the request cannot be completed
+  |--------------------------------------------------------------------------
+  */
+
+  if (labRequest.tests.length === 0) {
+    return labRequest;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Determine whether every requested test has a result
+  |--------------------------------------------------------------------------
+  */
+
+  const allTestsCompleted =
+    labRequest.tests.every((test) =>
+      labRequest.results.some(
+        (result) =>
+          result.testName.toLowerCase() ===
+          test.testName.toLowerCase()
+      )
+    );
+
+  if (!allTestsCompleted) {
+    return labRequest;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Already completed
+  |--------------------------------------------------------------------------
+  */
+
+  if (labRequest.status === "COMPLETED") {
+    return labRequest;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Finalize laboratory request
+  |--------------------------------------------------------------------------
+  */
+
+  return tx.labRequest.update({
+    where: {
+      id: labRequestId,
+    },
+
+    data: {
+      status: "COMPLETED",
+      completedAt: new Date(),
+    },
+
+    include: {
+      patient: true,
+      tests: true,
+      results: true,
+
+      requestedBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+        },
+      },
+
+      encounter: {
+        select: {
+          id: true,
+          patientId: true,
+          facilityId: true,
+          status: true,
+          startedAt: true,
+          completedAt: true,
+        },
+      },
+    },
+  });
+};
+
 
 /*
 |--------------------------------------------------------------------------
@@ -21,15 +144,16 @@ export const createLabResult = async ({
   |--------------------------------------------------------------------------
   */
 
-  const labRequest = await prisma.labRequest.findUnique({
-    where: {
-      id: labRequestId,
-    },
+  const labRequest =
+    await prisma.labRequest.findUnique({
+      where: {
+        id: labRequestId,
+      },
 
-    include: {
-      tests: true,
-    },
-  });
+      include: {
+        tests: true,
+      },
+    });
 
   if (!labRequest) {
     const error = new Error(
@@ -37,6 +161,24 @@ export const createLabResult = async ({
     );
 
     error.statusCode = 404;
+    throw error;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Do not add results to completed/cancelled requests
+  |--------------------------------------------------------------------------
+  */
+
+  if (
+    labRequest.status === "COMPLETED" ||
+    labRequest.status === "CANCELLED"
+  ) {
+    const error = new Error(
+      "Cannot add a result to a completed or cancelled laboratory request."
+    );
+
+    error.statusCode = 409;
     throw error;
   }
 
@@ -72,15 +214,16 @@ export const createLabResult = async ({
 
   /*
   |--------------------------------------------------------------------------
-  | Verify test belongs to the request
+  | Verify requested test
   |--------------------------------------------------------------------------
   */
 
-  const requestedTest = labRequest.tests.find(
-    (test) =>
-      test.testName.toLowerCase() ===
-      testName.toLowerCase()
-  );
+  const requestedTest =
+    labRequest.tests.find(
+      (test) =>
+        test.testName.toLowerCase() ===
+        testName.toLowerCase()
+    );
 
   if (!requestedTest) {
     const error = new Error(
@@ -119,53 +262,70 @@ export const createLabResult = async ({
 
   /*
   |--------------------------------------------------------------------------
-  | Create result
+  | Create result + finalize request when appropriate
   |--------------------------------------------------------------------------
   */
 
-  return prisma.labResult.create({
-    data: {
-      labRequestId,
-      performedById,
+  const result =
+    await prisma.$transaction(async (tx) => {
+      const createdResult =
+        await tx.labResult.create({
+          data: {
+            labRequestId,
+            performedById,
 
-      testName,
+            testName,
 
-      resultValue:
-        resultValue || null,
+            resultValue:
+              resultValue || null,
 
-      unit:
-        unit || null,
+            unit:
+              unit || null,
 
-      referenceRange:
-        referenceRange || null,
+            referenceRange:
+              referenceRange || null,
 
-      interpretation:
-        interpretation || null,
+            interpretation:
+              interpretation || null,
 
-      status: "COMPLETED",
+            status: "COMPLETED",
 
-      resultDate: new Date(),
-    },
+            resultDate: new Date(),
+          },
 
-    include: {
-      performedBy: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          role: true,
-        },
-      },
+          include: {
+            performedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                role: true,
+              },
+            },
 
-      labRequest: {
-        include: {
-          tests: true,
-          patient: true,
-          encounter: true,
-        },
-      },
-    },
-  });
+            labRequest: {
+              include: {
+                tests: true,
+                patient: true,
+                encounter: true,
+              },
+            },
+          },
+        });
+
+      const finalizedRequest =
+        await finalizeLabRequestIfComplete(
+          tx,
+          labRequestId
+        );
+
+      return {
+        result: createdResult,
+        labRequest: finalizedRequest,
+      };
+    });
+
+  return result;
 };
 
 
@@ -230,6 +390,10 @@ export const verifyLabResult = async (
     await prisma.labResult.findUnique({
       where: {
         id: labResultId,
+      },
+
+      include: {
+        labRequest: true,
       },
     });
 

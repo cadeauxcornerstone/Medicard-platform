@@ -20,6 +20,13 @@ import "./config/env.js";
 import servicePriceRoutes from "./routes/service-price.routes.js";
 import chargeRoutes from "./routes/charge.routes.js";
 import insuranceRoutes from "./routes/insurance.routes.js";
+import paymentRoutes from "./routes/payment.routes.js";
+import walletRoutes from "./routes/wallet.routes.js";
+import pharmacyRoutes from "./routes/pharmacy.routes.js";
+import dispensingRoutes from "./routes/dispensing.routes.js";
+import encounterRoutes from "./routes/encounter.routes.js";
+
+
 
 const app = express();
 
@@ -121,6 +128,24 @@ app.use(
   cardRoutes
 );
 
+app.use(
+  "/api/v1",
+  walletRoutes
+);
+
+
+
+/*
+|--------------------------------------------------------------------------
+| PHARMACY ROUTES
+|--------------------------------------------------------------------------
+*/
+
+app.use(
+  "/api/v1",
+  pharmacyRoutes
+);
+
 /*
 |--------------------------------------------------------------------------
 | CLINICAL NOTE ROUTES
@@ -165,6 +190,8 @@ app.use(
   "/api/v1",
   prescriptionRoutes
 );
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -213,6 +240,24 @@ app.use(
   "/api/v1",
   insuranceRoutes
 );
+
+app.use(
+  "/api/v1",
+  paymentRoutes
+);
+
+
+app.use(
+  "/api/v1",
+  dispensingRoutes
+);
+
+
+app.use(
+  "/api/v1",
+  encounterRoutes
+);
+
 
 
 

@@ -9,6 +9,7 @@ import {
   getPlanCoverages,
   addInsuranceToPatient,
   getPatientInsurances,
+  calculateChargeInsurance,
 } from "../controllers/insurance.controller.js";
 
 const router = express.Router();
@@ -57,6 +58,17 @@ router.get(
 router.post(
   "/insurance/plans/:planId/coverages",
   createPlanCoverage
+);
+
+/*
+|--------------------------------------------------------------------------
+| CHARGE INSURANCE CALCULATION
+|--------------------------------------------------------------------------
+*/
+
+router.post(
+  "/charges/:chargeId/calculate-insurance",
+  calculateChargeInsurance
 );
 
 router.get(

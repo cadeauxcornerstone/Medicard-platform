@@ -487,3 +487,255 @@ export const getPatientInsurance = async (
     },
   });
 };
+
+/*
+|--------------------------------------------------------------------------
+| CALCULATE INSURANCE FOR CHARGE
+|--------------------------------------------------------------------------
+*/
+
+export const calculateInsuranceForCharge =
+  async (chargeId) => {
+    const charge =
+      await prisma.charge.findUnique({
+        where: {
+          id: chargeId,
+        },
+
+        include: {
+          service: true,
+
+          patient: {
+            include: {
+              patientInsurances: {
+                where: {
+                  status: "ACTIVE",
+                },
+
+                include: {
+                  plan: {
+                    include: {
+                      coverages: true,
+                      provider: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+    if (!charge) {
+      const error = new Error(
+        "Charge not found"
+      );
+
+      error.statusCode = 404;
+      throw error;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Find applicable insurance
+    |--------------------------------------------------------------------------
+    */
+
+    const now = new Date();
+
+    const activeInsurance =
+      charge.patient.patientInsurances.find(
+        (insurance) => {
+          const validFrom =
+            !insurance.validFrom ||
+            insurance.validFrom <= now;
+
+          const validTo =
+            !insurance.validTo ||
+            insurance.validTo >= now;
+
+          return validFrom && validTo;
+        }
+      );
+
+    if (!activeInsurance) {
+      const error = new Error(
+        "No active insurance coverage found for this patient"
+      );
+
+      error.statusCode = 404;
+      throw error;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Find coverage for this service
+    |--------------------------------------------------------------------------
+    */
+
+    const coverage =
+      activeInsurance.plan.coverages.find(
+        (item) =>
+          item.serviceId === charge.serviceId &&
+          item.isActive === true
+      );
+
+    if (!coverage) {
+      const error = new Error(
+        "No insurance coverage rule found for this service"
+      );
+
+      error.statusCode = 404;
+      throw error;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Calculate insurance amount
+    |--------------------------------------------------------------------------
+    */
+
+    const subtotal = Number(
+      charge.subtotal
+    );
+
+    let insuranceAmount = 0;
+
+    if (
+      coverage.coverageType ===
+      "PERCENTAGE"
+    ) {
+      insuranceAmount =
+        subtotal *
+        (Number(
+          coverage.coverageValue
+        ) / 100);
+    }
+
+    if (
+      coverage.coverageType ===
+      "FIXED_AMOUNT"
+    ) {
+      insuranceAmount =
+        Number(
+          coverage.coverageValue
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Apply maximum coverage
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+      coverage.maxAmount !== null &&
+      coverage.maxAmount !== undefined
+    ) {
+      insuranceAmount = Math.min(
+        insuranceAmount,
+        Number(coverage.maxAmount)
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Insurance can never exceed charge
+    |--------------------------------------------------------------------------
+    */
+
+    insuranceAmount = Math.min(
+      insuranceAmount,
+      subtotal
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Round to 2 decimal places
+    |--------------------------------------------------------------------------
+    */
+
+    insuranceAmount =
+      Math.round(
+        insuranceAmount * 100
+      ) / 100;
+
+    const patientAmount =
+      Math.round(
+        (subtotal - insuranceAmount) *
+          100
+      ) / 100;
+
+    /*
+    |--------------------------------------------------------------------------
+    | Update charge
+    |--------------------------------------------------------------------------
+    */
+
+    const updatedCharge =
+      await prisma.charge.update({
+        where: {
+          id: chargeId,
+        },
+
+        data: {
+          insuranceAmount,
+          patientAmount,
+
+          status:
+            patientAmount === 0
+              ? "INSURANCE_CALCULATED"
+              : "INSURANCE_CALCULATED",
+        },
+
+        include: {
+          patient: {
+            select: {
+              id: true,
+              patientNumber: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+
+          service: true,
+
+          servicePrice: true,
+        },
+      });
+
+    return {
+      charge: updatedCharge,
+
+      insurance: {
+        provider:
+          activeInsurance.plan.provider.name,
+
+        plan:
+          activeInsurance.plan.name,
+
+        membershipNumber:
+          activeInsurance.membershipNumber,
+
+        coverageType:
+          coverage.coverageType,
+
+        coverageValue:
+          coverage.coverageValue,
+
+        maxAmount:
+          coverage.maxAmount,
+      },
+
+      calculation: {
+        subtotal,
+
+        insuranceAmount,
+
+        patientAmount,
+
+        currency:
+          charge.currency,
+      },
+    };
+  };

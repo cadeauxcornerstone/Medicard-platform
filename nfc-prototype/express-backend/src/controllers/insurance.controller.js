@@ -7,6 +7,7 @@ import {
   getCoveragesByPlan,
   addPatientInsurance,
   getPatientInsurance,
+  calculateInsuranceForCharge,
 } from "../services/insurance.service.js";
 
 
@@ -209,6 +210,35 @@ export const getPatientInsurances =
       res.json({
         success: true,
         data: insurance,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /*
+|--------------------------------------------------------------------------
+| CALCULATE INSURANCE FOR CHARGE
+|--------------------------------------------------------------------------
+*/
+
+export const calculateChargeInsurance =
+  async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      const result =
+        await calculateInsuranceForCharge(
+          req.params.chargeId
+        );
+
+      res.json({
+        success: true,
+        message:
+          "Insurance calculated successfully",
+        data: result,
       });
     } catch (error) {
       next(error);
