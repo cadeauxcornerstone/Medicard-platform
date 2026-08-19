@@ -24,11 +24,9 @@ RIDEV_INPUTSINK = 0x00000100
 RID_INPUT_DEVICE = 0x10000001
 RIDI_DEVICENAME = 0x20000007
 
-
 # ---------------------------------------------------------
 # Raw Input structures
-# ---------------------------------------------------------
-
+#
 class RAWINPUTDEVICE(ctypes.Structure):
     _fields_ = [
         ("usUsagePage", wintypes.USHORT),

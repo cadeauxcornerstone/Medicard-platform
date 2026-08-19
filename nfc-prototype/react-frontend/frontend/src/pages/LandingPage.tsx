@@ -5,11 +5,11 @@ import {
   FileText,
   FlaskConical,
   HeartPulse,
-  
   Menu,
   ShieldCheck,
   Stethoscope,
   WalletCards,
+  Wifi,
   X,
 } from "lucide-react";
 import { useState } from "react";
@@ -66,40 +66,41 @@ function LandingPage() {
 
 
           <nav className="landing-nav-links">
-
-            <a href="#problem">
-              Problem
+            <a href="#problem">Problem</a>
+            <a href="#solution">Solution</a>
+            <a href="#services">Services</a>
+            <a href="#payment">Payments</a>
+            <a
+              href="#patients"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate("/patients");
+              }}
+            >
+              Patient Registry
             </a>
-
-            <a href="#solution">
-              Solution
-            </a>
-
-            <a href="#services">
-              Services
-            </a>
-
-            <a href="#payment">
-              Payments
-            </a>
-
-            <a href="#contact">
-              Contact
-            </a>
-
+            <a href="#contact">Contact</a>
           </nav>
 
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <button
+              type="button"
+              className="landing-secondary-button"
+              style={{ minHeight: "37px", padding: "0 12px" }}
+              onClick={() => navigate("/dashboard")}
+            >
+              Live Dashboard
+            </button>
 
-          <button
-            type="button"
-            className="landing-nav-cta"
-            onClick={goToFacilityPortal}
-          >
-            Facility Portal
-
-            <ArrowRight size={14} />
-
-          </button>
+            <button
+              type="button"
+              className="landing-nav-cta"
+              onClick={goToFacilityPortal}
+            >
+              Facility Portal
+              <ArrowRight size={14} />
+            </button>
+          </div>
 
 
           <button
@@ -219,28 +220,33 @@ function LandingPage() {
               </p>
 
 
-              <div className="landing-hero-actions">
-
+              <div className="landing-hero-actions" style={{ flexWrap: "wrap", gap: "10px" }}>
                 <button
                   type="button"
                   className="landing-primary-button"
-                  onClick={goToFacilityPortal}
+                  onClick={() => navigate("/dashboard")}
                 >
-
-                  Authorized Facility Login
-
+                  Launch Interactive Demo
                   <ArrowRight size={17} />
-
                 </button>
 
-
-                <a
-                  href="#solution"
+                <button
+                  type="button"
                   className="landing-secondary-button"
+                  style={{ display: "inline-flex", alignItems: "center", gap: "7px" }}
+                  onClick={() => navigate("/nfc")}
                 >
-                  Explore MedCard
-                </a>
+                  <Wifi size={15} />
+                  <span>Scan MedCard</span>
+                </button>
 
+                <button
+                  type="button"
+                  className="landing-secondary-button"
+                  onClick={goToFacilityPortal}
+                >
+                  Facility Login
+                </button>
               </div>
 
 

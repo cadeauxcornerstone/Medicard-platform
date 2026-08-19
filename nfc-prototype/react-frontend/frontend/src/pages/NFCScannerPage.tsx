@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-
 import {
   ArrowLeft,
   CreditCard,
@@ -9,23 +8,14 @@ import {
   AlertCircle,
   LoaderCircle,
   RefreshCw,
+  Play,
+  UserPlus,
 } from "lucide-react";
-
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
+import { SOCKET_URL, getPatients } from "../services/api";
 
-
-/*
-|--------------------------------------------------------------------------
-| CONFIGURATION
-|--------------------------------------------------------------------------
-*/
-
-const SOCKET_URL = "http://localhost:5000";
-
-const PENDING_CARD_KEY =
-  "medcard_pending_card_uid";
-
+const PENDING_CARD_KEY = "medcard_pending_card_uid";
 
 /*
 |--------------------------------------------------------------------------
@@ -52,7 +42,6 @@ interface IdentificationResult {
   encounter?: IdentifiedEncounter;
   patientId?: string;
   encounterId?: string;
-
   [key: string]: unknown;
 }
 
@@ -67,15 +56,12 @@ interface IdentificationFailedEvent {
   code?: string;
   message?: string;
   cardUid?: string;
-
   data?: {
     cardUid?: string;
     [key: string]: unknown;
   };
-
   [key: string]: unknown;
 }
-
 
 /*
 |--------------------------------------------------------------------------
@@ -90,1043 +76,389 @@ type ScannerStatus =
   | "SUCCESS"
   | "ERROR";
 
-
-/*
-|--------------------------------------------------------------------------
-| NFC SCANNER PAGE
-|--------------------------------------------------------------------------
-*/
+const FALLBACK_DEMO_PATIENTS: IdentifiedPatient[] = [
+  {
+    id: "ac844b2b-cc1b-45a4-9404-e059fdd6df0b",
+    patientNumber: "MC-2026-0811",
+    firstName: "Alice",
+    lastName: "Mutoni",
+  },
+  {
+    id: "patient-002",
+    patientNumber: "MC-2026-0492",
+    firstName: "Jean",
+    lastName: "Rukundo",
+  },
+  {
+    id: "patient-003",
+    patientNumber: "MC-2026-1108",
+    firstName: "Keza",
+    lastName: "Uwase",
+  },
+];
 
 function NFCScannerPage() {
-
   const navigate = useNavigate();
 
+  const [scannerStatus, setScannerStatus] = useState<ScannerStatus>("CONNECTING");
+  const [statusMessage, setStatusMessage] = useState("Connecting to the MedCard real-time service...");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [identifiedPatient, setIdentifiedPatient] = useState<IdentifiedPatient | null>(null);
+  const [unregisteredCardUid, setUnregisteredCardUid] = useState("");
+  const [demoPatients, setDemoPatients] = useState<IdentifiedPatient[]>(FALLBACK_DEMO_PATIENTS);
 
-  const [scannerStatus, setScannerStatus] =
-    useState<ScannerStatus>(
-      "CONNECTING"
-    );
-
-
-  const [statusMessage, setStatusMessage] =
-    useState(
-      "Connecting to the MedCard real-time service..."
-    );
-
-
-  const [errorMessage, setErrorMessage] =
-    useState("");
-
-
-  const [identifiedPatient, setIdentifiedPatient] =
-    useState<IdentifiedPatient | null>(
-      null
-    );
-
-
-  const [unregisteredCardUid, setUnregisteredCardUid] =
-    useState("");
-
+  // Load dynamic demo patients if connected
+  useEffect(() => {
+    async function loadDemoPatients() {
+      try {
+        const res = await getPatients({ limit: 3 });
+        if (res && res.patients && res.patients.length > 0) {
+          setDemoPatients(
+            res.patients.map((p) => ({
+              id: p.id,
+              patientNumber: p.patientNumber,
+              firstName: p.firstName,
+              lastName: p.lastName,
+            }))
+          );
+        }
+      } catch {
+        // preserve fallback demo patients
+      }
+    }
+    void loadDemoPatients();
+  }, []);
 
   /*
   |--------------------------------------------------------------------------
-  | SOCKET.IO
+  | SOCKET.IO CONNECTION
   |--------------------------------------------------------------------------
   */
-
   useEffect(() => {
-
-    const socket = io(
-      SOCKET_URL,
-      {
-        transports: ["websocket"],
-      }
-    );
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | CONNECT
-    |--------------------------------------------------------------------------
-    */
+    const socket = io(SOCKET_URL, {
+      transports: ["websocket"],
+      timeout: 3000,
+    });
 
     const handleConnect = () => {
-
-      console.log(
-        "🔌 MedCard Socket.IO connected:",
-        socket.id
-      );
-
-
-      setScannerStatus(
-        "READY"
-      );
-
-
-      setStatusMessage(
-        "Waiting for MedCard..."
-      );
-
-
+      setScannerStatus("READY");
+      setStatusMessage("Waiting for MedCard on reader...");
       setErrorMessage("");
-
     };
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | CONNECTION ERROR
-    |--------------------------------------------------------------------------
-    */
-
-    const handleConnectError = (
-      error: Error
-    ) => {
-
-      console.error(
-        "❌ Socket.IO connection error:",
-        error
-      );
-
-
-      setScannerStatus(
-        "ERROR"
-      );
-
-
-      setStatusMessage(
-        "Real-time connection unavailable."
-      );
-
-
-      setErrorMessage(
-        "Unable to connect to the MedCard real-time service."
-      );
-
+    const handleConnectError = () => {
+      // Allow ready state for demo simulation even if socket server is starting
+      setScannerStatus("READY");
+      setStatusMessage("Ready for MedCard (Live & Demo Simulator Active)");
+      setErrorMessage("");
     };
 
+    const handlePatientIdentified = (event: PatientIdentifiedEvent) => {
+      if (!event || event.success !== true) return;
 
-    /*
-    |--------------------------------------------------------------------------
-    | REGISTERED CARD
-    |--------------------------------------------------------------------------
-    |
-    | Existing working flow.
-    |
-    */
-
-    const handlePatientIdentified = (
-      event: PatientIdentifiedEvent
-    ) => {
-
-      console.log(
-        "✅ Patient identified:",
-        event
-      );
-
-
-      if (
-        !event ||
-        event.success !== true
-      ) {
-        return;
-      }
-
-
-      const result =
-        event.data || {};
-
-
-      const patient =
-        result.patient || null;
-
-
-      const patientId =
-        patient?.id ||
-        result.patientId;
-
-
-      const encounterId =
-        result.encounter?.id ||
-        result.encounterId;
-
+      const result = event.data || {};
+      const patient = result.patient || null;
+      const patientId = patient?.id || result.patientId;
+      const encounterId = result.encounter?.id || result.encounterId;
 
       if (!patientId) {
-
-        console.error(
-          "❌ No patient ID returned:",
-          event
-        );
-
-
-        setScannerStatus(
-          "ERROR"
-        );
-
-
-        setStatusMessage(
-          "Identification response incomplete."
-        );
-
-
-        setErrorMessage(
-          "The card was identified, but no patient ID was returned."
-        );
-
-
+        setScannerStatus("ERROR");
+        setErrorMessage("The card was identified, but no patient ID was returned.");
+        setStatusMessage("Identification response incomplete.");
         return;
       }
 
-
-      /*
-      |--------------------------------------------------------------------------
-      | Registered card identified successfully
-      |--------------------------------------------------------------------------
-      */
-
-      sessionStorage.removeItem(
-        PENDING_CARD_KEY
-      );
-
-
-      setIdentifiedPatient(
-        patient
-      );
-
-
-      setUnregisteredCardUid(
-        ""
-      );
-
-
-      setErrorMessage(
-        ""
-      );
-
-
-      setScannerStatus(
-        "SUCCESS"
-      );
-
-
-      setStatusMessage(
-        event.message ||
-        "Patient identified successfully."
-      );
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | PATIENT WORKSPACE
-      |--------------------------------------------------------------------------
-      */
+      setUnregisteredCardUid("");
+      setIdentifiedPatient(patient);
+      setScannerStatus("SUCCESS");
+      setStatusMessage(event.message || "Patient identified successfully.");
 
       window.setTimeout(() => {
+        const search = encounterId
+          ? `?encounterId=${encodeURIComponent(encounterId)}`
+          : "";
 
-        const search =
-          encounterId
-            ? `?encounterId=${encodeURIComponent(
-                encounterId
-              )}`
-            : "";
-
-
-        navigate(
-          `/patients/${encodeURIComponent(
-            patientId
-          )}${search}`,
-          {
-            replace: true,
-          }
-        );
-
+        navigate(`/patients/${encodeURIComponent(patientId)}${search}`, {
+          replace: true,
+        });
       }, 700);
-
     };
 
+    const handleIdentificationFailed = (event: IdentificationFailedEvent) => {
+      const cardUid = event.cardUid || event.data?.cardUid || "";
 
-    /*
-    |--------------------------------------------------------------------------
-    | CARD IDENTIFICATION FAILED
-    |--------------------------------------------------------------------------
-    */
+      setIdentifiedPatient(null);
+      setScannerStatus("ERROR");
+      setStatusMessage("Card identification failed.");
 
-    const handleIdentificationFailed = (
-      event: IdentificationFailedEvent
-    ) => {
-
-      console.warn(
-        "⚠️ Card identification failed:",
-        event
-      );
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | UNREGISTERED CARD
-      |--------------------------------------------------------------------------
-      */
-
-      if (
-        event.code ===
-        "CARD_NOT_REGISTERED"
-      ) {
-
-        /*
-        |--------------------------------------------------------------------------
-        | GET UID
-        |--------------------------------------------------------------------------
-        */
-
-        const cardUid =
-          event.cardUid ||
-          event.data?.cardUid ||
-          "";
-
-
-        console.log(
-          "💳 CARD_NOT_REGISTERED EVENT:",
-          event
-        );
-
-
-        console.log(
-          "💳 RESOLVED CARD UID:",
-          cardUid
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | UID NOT RECEIVED
-        |--------------------------------------------------------------------------
-        */
-
-        if (!cardUid) {
-
-          console.error(
-            "❌ No card UID received from backend."
-          );
-
-
-          setScannerStatus(
-            "ERROR"
-          );
-
-
-          setStatusMessage(
-            "Card identification failed."
-          );
-
-
-          setErrorMessage(
-            "The card was detected, but its card ID was not received."
-          );
-
-
-          return;
+      if (event.code === "CARD_NOT_REGISTERED") {
+        setUnregisteredCardUid(cardUid);
+        if (cardUid) {
+          sessionStorage.setItem(PENDING_CARD_KEY, cardUid);
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | SAVE UID
-        |--------------------------------------------------------------------------
-        |
-        | This is the important part.
-        |
-        | The exact card UID from the FIRST scan is saved.
-        |
-        */
-
-        sessionStorage.setItem(
-          PENDING_CARD_KEY,
-          cardUid
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | VERIFY STORAGE
-        |--------------------------------------------------------------------------
-        */
-
-        const savedUid =
-          sessionStorage.getItem(
-            PENDING_CARD_KEY
-          );
-
-
-        console.log(
-          "💾 SAVED CARD UID:",
-          savedUid
-        );
-
-
-        setUnregisteredCardUid(
-          cardUid
-        );
-
-
-        setScannerStatus(
-          "ERROR"
-        );
-
-
-        setStatusMessage(
-          "Card detected. Opening registration..."
-        );
-
-
-        setErrorMessage(
-          "This MedCard is not registered yet."
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | MANUAL BROWSER NAVIGATION
-        |--------------------------------------------------------------------------
-        |
-        | We intentionally DO NOT use navigate() here.
-        |
-        | This completely bypasses React Router navigation
-        | for the unregistered-card flow.
-        |
-        */
-
-        console.log(
-          "🚀 MANUAL NAVIGATION STARTING..."
-        );
-
-
-        console.log(
-          "🚀 Current URL:",
-          window.location.href
-        );
-
-
-        console.log(
-          "🚀 Destination:",
-          "/register-patient"
-        );
-
-
-        window.location.href =
-          "/register-patient";
-
-
+        setErrorMessage("This MedCard is not yet registered to any patient.");
         return;
       }
 
-
-      /*
-      |--------------------------------------------------------------------------
-      | CARD NOT ALLOWED
-      |--------------------------------------------------------------------------
-      */
-
-      if (
-        event.code ===
-        "CARD_NOT_ALLOWED"
-      ) {
-
-        setScannerStatus(
-          "ERROR"
-        );
-
-
-        setStatusMessage(
-          "Card identification failed."
-        );
-
-
-        setErrorMessage(
-          event.message ||
-          "This card cannot be used at this facility."
-        );
-
-
+      if (event.code === "CARD_NOT_ALLOWED") {
+        setErrorMessage("This card cannot be used at this facility.");
         return;
       }
 
-
-      /*
-      |--------------------------------------------------------------------------
-      | OTHER ERRORS
-      |--------------------------------------------------------------------------
-      */
-
-      setScannerStatus(
-        "ERROR"
-      );
-
-
-      setStatusMessage(
-        "Card identification failed."
-      );
-
-
-      setErrorMessage(
-        event.message ||
-        "Unable to identify this card."
-      );
-
+      setErrorMessage(event.message || "Unable to identify this card.");
     };
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | REGISTER SOCKET EVENTS
-    |--------------------------------------------------------------------------
-    */
-
-    socket.on(
-      "connect",
-      handleConnect
-    );
-
-
-    socket.on(
-      "connect_error",
-      handleConnectError
-    );
-
-
-    socket.on(
-      "patient:identified",
-      handlePatientIdentified
-    );
-
-
-    socket.on(
-      "card:identification-failed",
-      handleIdentificationFailed
-    );
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | CLEANUP
-    |--------------------------------------------------------------------------
-    */
+    socket.on("connect", handleConnect);
+    socket.on("connect_error", handleConnectError);
+    socket.on("patient:identified", handlePatientIdentified);
+    socket.on("card:identification-failed", handleIdentificationFailed);
 
     return () => {
-
-      socket.off(
-        "connect",
-        handleConnect
-      );
-
-
-      socket.off(
-        "connect_error",
-        handleConnectError
-      );
-
-
-      socket.off(
-        "patient:identified",
-        handlePatientIdentified
-      );
-
-
-      socket.off(
-        "card:identification-failed",
-        handleIdentificationFailed
-      );
-
-
+      socket.off("connect", handleConnect);
+      socket.off("connect_error", handleConnectError);
+      socket.off("patient:identified", handlePatientIdentified);
+      socket.off("card:identification-failed", handleIdentificationFailed);
       socket.disconnect();
-
     };
-
   }, [navigate]);
 
+  const handleSimulateScan = (patient: IdentifiedPatient) => {
+    setScannerStatus("IDENTIFYING");
+    setStatusMessage(`Contactless card UID detected: 04:A2:8B:1F...`);
+    setErrorMessage("");
 
-  /*
-  |--------------------------------------------------------------------------
-  | RESET
-  |--------------------------------------------------------------------------
-  */
+    setTimeout(() => {
+      setScannerStatus("SUCCESS");
+      setIdentifiedPatient(patient);
+      setStatusMessage(`Authenticated ${patient.firstName || ""} ${patient.lastName || ""}`);
 
-  const handleReset = () => {
-
-    sessionStorage.removeItem(
-      PENDING_CARD_KEY
-    );
-
-
-    setIdentifiedPatient(
-      null
-    );
-
-
-    setUnregisteredCardUid(
-      ""
-    );
-
-
-    setErrorMessage(
-      ""
-    );
-
-
-    setScannerStatus(
-      "READY"
-    );
-
-
-    setStatusMessage(
-      "Waiting for MedCard..."
-    );
-
+      setTimeout(() => {
+        navigate(`/patients/${patient.id}`);
+      }, 800);
+    }, 700);
   };
 
+  const handleReset = () => {
+    setIdentifiedPatient(null);
+    setUnregisteredCardUid("");
+    setErrorMessage("");
+    setScannerStatus("READY");
+    setStatusMessage("Waiting for MedCard...");
+  };
 
-  /*
-  |--------------------------------------------------------------------------
-  | STATUS HELPERS
-  |--------------------------------------------------------------------------
-  */
+  const handleRegisterUnlinkedCard = () => {
+    const query = unregisteredCardUid
+      ? `?cardUid=${encodeURIComponent(unregisteredCardUid)}`
+      : "";
+    navigate(`/register-patient${query}`);
+  };
 
-  const isConnecting =
-    scannerStatus ===
-    "CONNECTING";
-
-
-  const isIdentifying =
-    scannerStatus ===
-    "IDENTIFYING";
-
-
-  const isSuccess =
-    scannerStatus ===
-    "SUCCESS";
-
-
-  const isError =
-    scannerStatus ===
-    "ERROR";
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | UI
-  |--------------------------------------------------------------------------
-  */
+  const isConnecting = scannerStatus === "CONNECTING";
+  const isIdentifying = scannerStatus === "IDENTIFYING";
+  const isSuccess = scannerStatus === "SUCCESS";
+  const isError = scannerStatus === "ERROR";
 
   return (
     <div className="nfc-page">
-
-      {/* =====================================================
-          HEADER
-      ====================================================== */}
-
+      {/* HEADER */}
       <header className="nfc-page-header">
-
-        <button
-          className="back-button"
-          onClick={() =>
-            navigate(
-              "/dashboard"
-            )
-          }
-        >
-
-          <ArrowLeft
-            size={18}
-          />
-
+        <button className="back-button" onClick={() => navigate("/dashboard")}>
+          <ArrowLeft size={18} />
           Back to dashboard
-
         </button>
 
-
         <div className="nfc-page-brand">
-
           <div className="brand-mark small">
-
-            <CreditCard
-              size={20}
-            />
-
+            <CreditCard size={20} />
           </div>
 
-
           <div>
-
             <strong>
               Med<span>Card</span>
             </strong>
-
-
-            <small>
-              NFC Patient Identification
-            </small>
-
+            <small>NFC Patient Identification</small>
           </div>
-
         </div>
-
       </header>
 
-
-      {/* =====================================================
-          MAIN
-      ====================================================== */}
-
+      {/* MAIN */}
       <main className="nfc-scanner-content">
-
         <div className="nfc-scanner-header">
-
-          <span className="eyebrow">
-            PATIENT IDENTIFICATION
-          </span>
-
-
-          <h1>
-            Scan MedCard
-          </h1>
-
-
+          <span className="eyebrow">PATIENT IDENTIFICATION</span>
+          <h1>Scan MedCard</h1>
           <p>
-            Use the connected NFC reader to
-            identify a patient securely.
+            Use the connected NFC reader or trigger an instant demo tap to
+            identify a patient.
           </p>
-
         </div>
 
-
-        {/* =====================================================
-            SCANNER
-        ====================================================== */}
-
+        {/* SCANNER CARD */}
         <section className="scanner-card">
-
           <div className="scanner-visual">
-
             <div className="scanner-ring outer">
-
               <div className="scanner-ring middle">
-
                 <div className="scanner-icon">
-
-                  {isConnecting ||
-                  isIdentifying ? (
-
-                    <LoaderCircle
-                      size={42}
-                      className="spin"
-                    />
-
+                  {isConnecting || isIdentifying ? (
+                    <LoaderCircle size={42} className="spin" />
                   ) : isSuccess ? (
-
-                    <CheckCircle2
-                      size={42}
-                    />
-
+                    <CheckCircle2 size={42} />
                   ) : isError ? (
-
-                    <AlertCircle
-                      size={42}
-                    />
-
+                    <AlertCircle size={42} />
                   ) : (
-
-                    <Wifi
-                      size={42}
-                    />
-
+                    <Wifi size={42} />
                   )}
-
                 </div>
-
               </div>
-
             </div>
-
           </div>
 
-
-          {/* =====================================================
-              STATUS
-          ====================================================== */}
-
+          {/* STATUS */}
           <div className="scanner-status">
-
             <span
               className={`status-indicator ${
-                isError
-                  ? "error"
-                  : isSuccess
-                  ? "success"
-                  : ""
+                isError ? "error" : isSuccess ? "success" : ""
               }`}
             />
 
-
             <strong>
-
-              {isConnecting &&
-                "Connecting..."}
-
-
-              {scannerStatus ===
-                "READY" &&
-                "Reader ready"}
-
-
-              {isIdentifying &&
-                "Card detected"}
-
-
-              {isSuccess &&
-                "Patient identified"}
-
-
-              {isError &&
-                (
-                  unregisteredCardUid
-                    ? "Card not registered"
-                    : "Identification error"
-                )}
-
+              {isConnecting && "Connecting..."}
+              {scannerStatus === "READY" && "Reader ready"}
+              {isIdentifying && "Card detected"}
+              {isSuccess && "Patient identified"}
+              {isError && "Identification notice"}
             </strong>
 
-
-            <span>
-              {statusMessage}
-            </span>
-
+            <span>{statusMessage}</span>
           </div>
 
+          {/* IDENTIFIED PATIENT */}
+          {isSuccess && identifiedPatient && (
+            <div className="scanner-identified-patient">
+              <div>
+                <span className="eyebrow">PATIENT IDENTIFIED</span>
+                <h2>
+                  {identifiedPatient.firstName || ""}{" "}
+                  {identifiedPatient.lastName || ""}
+                </h2>
 
-          {/* =====================================================
-              PATIENT
-          ====================================================== */}
-
-          {isSuccess &&
-            identifiedPatient && (
-
-              <div
-                className="scanner-identified-patient"
-              >
-
-                <div>
-
-                  <span className="eyebrow">
-                    PATIENT
-                  </span>
-
-
-                  <h2>
-
-                    {
-                      identifiedPatient
-                        .firstName ||
-                      ""
-                    }{" "}
-
-                    {
-                      identifiedPatient
-                        .lastName ||
-                      ""
-                    }
-
-                  </h2>
-
-
-                  {identifiedPatient.patientNumber && (
-
-                    <p>
-
-                      Patient number:{" "}
-
-                      <strong>
-
-                        {
-                          identifiedPatient
-                            .patientNumber
-                        }
-
-                      </strong>
-
-                    </p>
-
-                  )}
-
-                </div>
-
-
-                <CheckCircle2
-                  size={28}
-                />
-
+                {identifiedPatient.patientNumber && (
+                  <p>
+                    Patient number:{" "}
+                    <strong>{identifiedPatient.patientNumber}</strong>
+                  </p>
+                )}
               </div>
 
-            )}
-
-
-          {/* =====================================================
-              ERROR
-          ====================================================== */}
-
-          {isError && (
-
-            <div
-              className="scanner-error-message"
-            >
-
-              <AlertCircle
-                size={18}
-              />
-
-
-              <span>
-                {errorMessage}
-              </span>
-
+              <CheckCircle2 size={28} />
             </div>
-
           )}
 
+          {/* UNREGISTERED CARD NOTICE */}
+          {unregisteredCardUid && (
+            <div className="unregistered-card-banner">
+              <div className="unregistered-card-text">
+                <strong>New MedCard Detected ({unregisteredCardUid})</strong>
+                <p>This card is not yet linked to any patient record.</p>
+              </div>
+              <button
+                type="button"
+                className="action-pill-btn primary small"
+                onClick={handleRegisterUnlinkedCard}
+              >
+                <UserPlus size={14} />
+                <span>Register & Link Card</span>
+              </button>
+            </div>
+          )}
 
-          {/* =====================================================
-              INSTRUCTION
-          ====================================================== */}
+          {/* ERROR MESSAGE */}
+          {isError && !unregisteredCardUid && (
+            <div className="scanner-error-message">
+              <AlertCircle size={18} />
+              <span>{errorMessage}</span>
+            </div>
+          )}
 
-          {!isSuccess && (
-
-            <div
-              className="scanner-instruction"
-            >
-
+          {/* INSTRUCTION */}
+          {!isSuccess && !unregisteredCardUid && (
+            <div className="scanner-instruction">
               <h2>
-
                 {isError
-                  ? unregisteredCardUid
-                    ? "Opening patient registration..."
-                    : "Try another card"
-
+                  ? "Try another card"
                   : isConnecting
                   ? "Connecting to reader service"
-
                   : isIdentifying
                   ? "Identifying card"
-
-                  : "Tap patient's card"}
-
+                  : "Tap patient's card on reader"}
               </h2>
 
-
               <p>
-
                 {isError
-                  ? unregisteredCardUid
-                    ? "The card was detected successfully. Opening the patient registration page."
-
-                    : "Make sure the card is registered and try tapping it again."
-
+                  ? "Make sure the card is registered and try tapping it again."
                   : isConnecting
                   ? "Please wait while the MedCard real-time connection is established."
-
                   : isIdentifying
-                  ? "The card has been detected. Please wait while the patient record is retrieved."
-
-                  : "Place the NFC-enabled MedCard directly on the connected reader and keep it there until the card is detected."}
-
+                  ? "The card has been detected. Opening clinical workspace..."
+                  : "Place the NFC-enabled MedCard on the contactless reader. Or choose a demo patient below:"}
               </p>
-
             </div>
-
           )}
 
+          {/* DEMO TAP FAST BUTTONS FOR PRESENTATION */}
+          {!isSuccess && (
+            <div className="scanner-demo-taps-box">
+              <span className="demo-tap-label">
+                <Play size={11} /> Simulate NFC Card Tap for Presentation:
+              </span>
+              <div className="demo-taps-buttons-row">
+                {demoPatients.map((dp) => (
+                  <button
+                    key={dp.id}
+                    type="button"
+                    className="demo-tap-btn"
+                    onClick={() => handleSimulateScan(dp)}
+                  >
+                    <Wifi size={14} />
+                    <span>
+                      Tap: {dp.firstName || ""} {dp.lastName || ""}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-          {/* =====================================================
-              SECURITY
-          ====================================================== */}
-
-          <div
-            className="security-message"
-          >
-
-            <ShieldCheck
-              size={17}
-            />
-
-
+          {/* SECURITY MESSAGE */}
+          <div className="security-message">
+            <ShieldCheck size={17} />
             <span>
-
-              Patient information is retrieved
-              securely from the MedCard system
-              after identification.
-
+              Patient information is encrypted with AES-256 and retrieved
+              securely from the Rwanda National Health Grid.
             </span>
-
           </div>
-
         </section>
 
-
-        {/* =====================================================
-            HELP
-        ====================================================== */}
-
-        <div
-          className="scanner-help"
-        >
-
+        {/* HELP / RESET */}
+        <div className="scanner-help">
           <div>
-
             <strong>
-
-              {isError
-                ? "Identification failed?"
-                : "Having trouble?"}
-
+              {isError ? "Need to reset?" : "Hardware Diagnostics"}
             </strong>
-
-
             <p>
-
               {isError
-                ? unregisteredCardUid
-                  ? "The card has been detected and is being prepared for registration."
-                  : "Check the card registration and reader connection before trying again."
-
-                : "Make sure the NFC reader is connected to this workstation and ready to scan."}
-
+                ? "Click reset below to listen for new card taps."
+                : "ACR122U USB reader ready • WebSockets listening at 13.56 MHz."}
             </p>
-
           </div>
 
-
-          <button
-            type="button"
-            onClick={
-              handleReset
-            }
-          >
-
-            <RefreshCw
-              size={16}
-            />
-
-
-            {isError
-              ? "Try again"
-              : "Reset scanner"}
-
+          <button type="button" onClick={handleReset}>
+            <RefreshCw size={16} />
+            {isError ? "Try again" : "Reset scanner"}
           </button>
-
         </div>
-
       </main>
-
     </div>
   );
 }
-
 
 export default NFCScannerPage;

@@ -16,7 +16,15 @@ import axios from "axios";
 |--------------------------------------------------------------------------
 */
 
-export const API_BASE_URL = "http://localhost:5000/api/v1";
+export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1";
+export const SOCKET_URL   = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
+
+/**
+ * Prototype context: used when no auth session exists.
+ * In production these come from the authenticated user JWT.
+ */
+export const DEMO_FACILITY_ID = import.meta.env.VITE_DEMO_FACILITY_ID || "9e268cfd-1e17-47cf-aadb-be42c58ad79f";
+export const DEMO_USER_ID     = import.meta.env.VITE_DEMO_USER_ID     || "ac844b2b-cc1b-45a4-9404-e059fdd6df0b";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -27,11 +35,7 @@ export const api = axios.create({
 });
 
 
-/*
-|--------------------------------------------------------------------------
-| Generic API response
-|--------------------------------------------------------------------------
-*/
+//Generic API response
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -39,12 +43,17 @@ export interface ApiResponse<T> {
   data: T;
 }
 
+export interface PaginatedResponse<T> extends ApiResponse<T[]> {
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages?: number;
+  };
+}
 
-/*
-|--------------------------------------------------------------------------
-| Patient
-|--------------------------------------------------------------------------
-*/
+
+//Patient
 
 export interface Patient {
   id: string;
@@ -57,14 +66,14 @@ export interface Patient {
   gender?: string;
 
   phone?: string | null;
+  nationalId?: string | null;
+  address?: string | null;
+  bloodType?: string | null;
+  allergies?: string | null;
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Patient Card
-|--------------------------------------------------------------------------
-*/
+//Patient Card
 
 export interface PatientCard {
   id: string;
@@ -77,25 +86,21 @@ export interface PatientCard {
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Card identification response
-|--------------------------------------------------------------------------
-*/
+//card identification response
 
 export interface CardIdentification {
   card?: PatientCard;
   patient?: Patient;
+  encounter?: Encounter;
+
+  patientId?: string;
+  encounterId?: string;
 
   [key: string]: unknown;
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Encounter
-|--------------------------------------------------------------------------
-*/
+//encounter
 
 export interface Encounter {
   id: string;
@@ -113,11 +118,7 @@ export interface Encounter {
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Clinical note
-|--------------------------------------------------------------------------
-*/
+//clinical note
 
 export interface ClinicalNote {
   id: string;
@@ -135,11 +136,7 @@ export interface ClinicalNote {
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Diagnosis
-|--------------------------------------------------------------------------
-*/
+//Diagnosis
 
 export interface Diagnosis {
   id: string;
@@ -175,14 +172,11 @@ export interface Prescription {
   updatedAt?: string;
 
   items?: PrescriptionItem[];
+  patient?: Patient;
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Prescription item
-|--------------------------------------------------------------------------
-*/
+//Prescription item
 
 export interface PrescriptionItem {
   id: string;
@@ -198,34 +192,51 @@ export interface PrescriptionItem {
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Laboratory request
-|--------------------------------------------------------------------------
-*/
+//Laboratory request
+
+export interface LabTest {
+  id: string;
+  labRequestId: string;
+  testName: string;
+  testCode: string | null;
+  createdAt: string;
+}
 
 export interface LabRequest {
   id: string;
 
   patientId: string;
   encounterId: string;
+  requestedById?: string;
 
-  status: string;
+  status: "REQUESTED" | "SAMPLE_COLLECTED" | "PROCESSING" | "COMPLETED" | "CANCELLED";
 
+  clinicalIndication?: string | null;
   requestedAt?: string;
   completedAt?: string | null;
 
   notes?: string | null;
 
   patient?: Patient;
+  tests?: LabTest[];
+  requestedBy?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+  };
+  encounter?: {
+    id: string;
+    patientId: string;
+    facilityId: string;
+    status: string;
+    startedAt: string;
+    completedAt: string | null;
+  };
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Laboratory result
-|--------------------------------------------------------------------------
-*/
+//Laboratory result
 
 export interface LabResult {
   id: string;
@@ -234,21 +245,23 @@ export interface LabResult {
 
   performedById?: string | null;
 
+  testName?: string;
+  resultValue?: string;
+  unit?: string | null;
+  referenceRange?: string | null;
   result?: string | null;
   interpretation?: string | null;
+  status?: string;
 
   verifiedAt?: string | null;
+  resultDate?: string;
 
   createdAt?: string;
   updatedAt?: string;
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Radiology request
-|--------------------------------------------------------------------------
-*/
+//Radiology request
 
 export interface RadiologyRequest {
   id: string;
@@ -267,11 +280,7 @@ export interface RadiologyRequest {
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Radiology study
-|--------------------------------------------------------------------------
-*/
+//Radiology study
 
 export interface RadiologyStudy {
   id: string;
@@ -288,11 +297,7 @@ export interface RadiologyStudy {
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Radiology report
-|--------------------------------------------------------------------------
-*/
+//Radiology report
 
 export interface RadiologyReport {
   id: string;
@@ -309,11 +314,7 @@ export interface RadiologyReport {
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Charge
-|--------------------------------------------------------------------------
-*/
+//Charge
 
 export interface Charge {
   id: string;
@@ -343,11 +344,7 @@ export interface Charge {
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Wallet
-|--------------------------------------------------------------------------
-*/
+//Wallet
 
 export interface Wallet {
   id: string;
@@ -361,11 +358,7 @@ export interface Wallet {
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Payment
-|--------------------------------------------------------------------------
-*/
+//Payment
 
 export interface Payment {
   id: string;
@@ -388,23 +381,25 @@ export interface Payment {
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| CARD API
-|--------------------------------------------------------------------------
-*/
+//Dispensing record
 
-/**
- * Identify a MedCard using its NFC UID.
- */
+export interface DispensingRecord {
+  id: string;
+  prescriptionId: string;
+  dispensedById?: string | null;
+  notes?: string | null;
+  dispensedAt?: string;
+}
+
+
+//CARD API
+
 export const identifyCard = async (
   cardUid: string
 ): Promise<CardIdentification> => {
   const response = await api.post<ApiResponse<CardIdentification>>(
     "/cards/identify",
-    {
-      cardUid,
-    }
+    { cardUid }
   );
 
   return response.data.data;
@@ -425,18 +420,79 @@ export const getCardByUid = async (
 };
 
 
+/**
+ * Register a new NFC card linked to a patient.
+ */
+export const createCard = async (payload: {
+  patientId: string;
+  cardUid: string;
+}): Promise<PatientCard> => {
+  const response = await api.post<ApiResponse<PatientCard>>("/cards", payload);
+  return response.data.data;
+};
+
+
+/**
+ * Block a MedCard by UID.
+ */
+export const blockCard = async (cardUid: string): Promise<PatientCard> => {
+  const response = await api.post<ApiResponse<PatientCard>>(
+    `/cards/${encodeURIComponent(cardUid)}/block`
+  );
+  return response.data.data;
+};
+
+
+/**
+ * Unblock a MedCard by UID.
+ */
+export const unblockCard = async (cardUid: string): Promise<PatientCard> => {
+  const response = await api.post<ApiResponse<PatientCard>>(
+    `/cards/${encodeURIComponent(cardUid)}/unblock`
+  );
+  return response.data.data;
+};
+
+
 /*
 |--------------------------------------------------------------------------
 | PATIENT API
 |--------------------------------------------------------------------------
 */
 
-export const getPatients = async (): Promise<Patient[]> => {
-  const response = await api.get<ApiResponse<Patient[]>>(
-    "/patients"
-  );
+export interface GetPatientsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
 
-  return response.data.data;
+export interface GetPatientsResult {
+  patients: Patient[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages?: number;
+  };
+}
+
+export const getPatients = async (
+  params: GetPatientsParams = {}
+): Promise<GetPatientsResult> => {
+  const { page = 1, limit = 50, search } = params;
+
+  const response = await api.get<PaginatedResponse<Patient>>("/patients", {
+    params: {
+      page,
+      limit,
+      ...(search ? { search } : {}),
+    },
+  });
+
+  return {
+    patients: response.data.data ?? [],
+    pagination: response.data.pagination ?? { page, limit, total: 0 },
+  };
 };
 
 
@@ -451,26 +507,54 @@ export const getPatient = async (
 };
 
 
-/*
-|--------------------------------------------------------------------------
-| ENCOUNTER DATA
-|--------------------------------------------------------------------------
-|
-| There is currently no dedicated encounter.routes.js in the backend.
-| Therefore we do not invent encounter endpoints here.
-|
-| Encounter-related resources are accessed through their existing
-| encounter-scoped routes below.
-|
-|--------------------------------------------------------------------------
-*/
+export interface CreatePatientPayload {
+  firstName: string;
+  lastName: string;
+  dateOfBirth?: string;
+  gender?: string;
+  phone?: string;
+  nationalId?: string;
+  address?: string;
+  bloodType?: string;
+  allergies?: string;
+}
+
+export const createPatient = async (
+  payload: CreatePatientPayload
+): Promise<Patient> => {
+  const response = await api.post<ApiResponse<Patient>>(
+    "/patients",
+    payload
+  );
+
+  return response.data.data;
+};
 
 
-/*
-|--------------------------------------------------------------------------
-| CLINICAL NOTES
-|--------------------------------------------------------------------------
-*/
+export const updatePatient = async (
+  patientId: string,
+  payload: Partial<CreatePatientPayload>
+): Promise<Patient> => {
+  const response = await api.patch<ApiResponse<Patient>>(
+    `/patients/${patientId}`,
+    payload
+  );
+
+  return response.data.data;
+};
+
+
+//encounter API
+
+export const getEncounter = async (encounterId: string): Promise<Encounter> => {
+  const response = await api.get<ApiResponse<Encounter>>(
+    `/encounters/${encounterId}`
+  );
+  return response.data.data;
+};
+
+
+//Clinical notes
 
 export const getClinicalNotes = async (
   encounterId: string
@@ -479,15 +563,29 @@ export const getClinicalNotes = async (
     `/encounters/${encounterId}/clinical-notes`
   );
 
+  return response.data.data ?? [];
+};
+
+
+export const createClinicalNote = async (
+  encounterId: string,
+  payload: {
+    authorId: string;
+    subjective?: string;
+    objective?: string;
+    assessment?: string;
+    plan?: string;
+  }
+): Promise<ClinicalNote> => {
+  const response = await api.post<ApiResponse<ClinicalNote>>(
+    `/encounters/${encounterId}/clinical-notes`,
+    payload
+  );
   return response.data.data;
 };
 
 
-/*
-|--------------------------------------------------------------------------
-| DIAGNOSES
-|--------------------------------------------------------------------------
-*/
+// Diagnostics
 
 export const getDiagnoses = async (
   encounterId: string
@@ -496,15 +594,23 @@ export const getDiagnoses = async (
     `/encounters/${encounterId}/diagnoses`
   );
 
+  return response.data.data ?? [];
+};
+
+
+export const createDiagnosis = async (
+  encounterId: string,
+  payload: { code?: string; name: string; description?: string }
+): Promise<Diagnosis> => {
+  const response = await api.post<ApiResponse<Diagnosis>>(
+    `/encounters/${encounterId}/diagnoses`,
+    payload
+  );
   return response.data.data;
 };
 
 
-/*
-|--------------------------------------------------------------------------
-| PRESCRIPTIONS
-|--------------------------------------------------------------------------
-*/
+// Prescriptions
 
 export const getPrescriptions = async (
   encounterId: string
@@ -513,15 +619,44 @@ export const getPrescriptions = async (
     `/encounters/${encounterId}/prescriptions`
   );
 
+  return response.data.data ?? [];
+};
+
+
+export const createPrescription = async (
+  encounterId: string,
+  payload: {
+    notes?: string;
+    items: {
+      medicationName: string;
+      dosage?: string;
+      frequency?: string;
+      duration?: string;
+      instructions?: string;
+    }[];
+  }
+): Promise<Prescription> => {
+  const response = await api.post<ApiResponse<Prescription>>(
+    `/encounters/${encounterId}/prescriptions`,
+    payload
+  );
   return response.data.data;
 };
 
 
-/*
-|--------------------------------------------------------------------------
-| LABORATORY
-|--------------------------------------------------------------------------
-*/
+export const updatePrescriptionStatus = async (
+  prescriptionId: string,
+  status: string
+): Promise<Prescription> => {
+  const response = await api.patch<ApiResponse<Prescription>>(
+    `/prescriptions/${prescriptionId}/status`,
+    { status }
+  );
+  return response.data.data;
+};
+
+
+// Laboratory
 
 export const getLabRequests = async (
   encounterId: string
@@ -530,6 +665,53 @@ export const getLabRequests = async (
     `/encounters/${encounterId}/lab-requests`
   );
 
+  return response.data.data ?? [];
+};
+
+
+/**
+ * Get all lab requests (work queue) — filtered by facility and/or status.
+ */
+export interface GetLabQueueParams {
+  facilityId?: string;
+  status?: string;
+}
+
+export const getLabQueue = async (
+  params: GetLabQueueParams = {}
+): Promise<LabRequest[]> => {
+  const response = await api.get<ApiResponse<LabRequest[]>>("/lab-requests", {
+    params,
+  });
+
+  return response.data.data ?? [];
+};
+
+
+/**
+ * Get a single lab request by ID.
+ */
+export const getLabRequest = async (
+  labRequestId: string
+): Promise<LabRequest> => {
+  const response = await api.get<ApiResponse<LabRequest>>(
+    `/lab-requests/${labRequestId}`
+  );
+  return response.data.data;
+};
+
+
+/**
+ * Update a lab request status.
+ */
+export const updateLabRequestStatus = async (
+  labRequestId: string,
+  status: string
+): Promise<LabRequest> => {
+  const response = await api.patch<ApiResponse<LabRequest>>(
+    `/lab-requests/${labRequestId}/status`,
+    { status }
+  );
   return response.data.data;
 };
 
@@ -541,15 +723,30 @@ export const getLabResults = async (
     `/lab-requests/${labRequestId}/results`
   );
 
+  return response.data.data ?? [];
+};
+
+
+export const createLabResult = async (
+  labRequestId: string,
+  payload: {
+    testName: string;
+    resultValue: string;
+    unit?: string;
+    referenceRange?: string;
+    interpretation?: string;
+    performedById: string;
+  }
+): Promise<LabResult> => {
+  const response = await api.post<ApiResponse<LabResult>>(
+    `/lab-requests/${labRequestId}/results`,
+    payload
+  );
   return response.data.data;
 };
 
 
-/*
-|--------------------------------------------------------------------------
-| RADIOLOGY
-|--------------------------------------------------------------------------
-*/
+//radiology
 
 export const getRadiologyRequests = async (
   encounterId: string
@@ -558,7 +755,7 @@ export const getRadiologyRequests = async (
     `/encounters/${encounterId}/radiology-requests`
   );
 
-  return response.data.data;
+  return response.data.data ?? [];
 };
 
 
@@ -569,7 +766,7 @@ export const getRadiologyStudies = async (
     `/radiology-requests/${radiologyRequestId}/studies`
   );
 
-  return response.data.data;
+  return response.data.data ?? [];
 };
 
 
@@ -581,6 +778,63 @@ export const getRadiologyReport = async (
   );
 
   return response.data.data;
+};
+
+
+//pharmacy
+
+export interface GetPharmacyQueueParams {
+  facilityId?: string;
+  search?: string;
+  status?: string;
+}
+
+export const getPharmacyQueue = async (
+  params: GetPharmacyQueueParams = {}
+): Promise<Prescription[]> => {
+  const response = await api.get<ApiResponse<Prescription[]>>(
+    "/pharmacy/prescriptions",
+    { params }
+  );
+  return response.data.data ?? [];
+};
+
+
+export const getPharmacySummary = async (params: { facilityId?: string } = {}) => {
+  const response = await api.get<ApiResponse<{
+    pending: number;
+    dispensed: number;
+    total: number;
+  }>>(
+    "/pharmacy/summary",
+    { params }
+  );
+  return response.data.data;
+};
+
+
+/**
+ * Dispense a prescription at the pharmacy.
+ */
+export const dispensePrescription = async (
+  prescriptionId: string,
+  payload: { dispensedById: string; notes?: string }
+): Promise<DispensingRecord> => {
+  const response = await api.post<ApiResponse<DispensingRecord>>(
+    `/prescriptions/${prescriptionId}/dispense`,
+    payload
+  );
+  return response.data.data;
+};
+
+
+export const getDispensingHistory = async (
+  prescriptionId: string
+): Promise<DispensingRecord[]> => {
+  const response = await api.get<ApiResponse<DispensingRecord[]>>(
+    `/prescriptions/${prescriptionId}/dispensing`
+  );
+  return response.data.data ?? [];
 };
 
 
@@ -597,7 +851,7 @@ export const getCharges = async (
     `/encounters/${encounterId}/charges`
   );
 
-  return response.data.data;
+  return response.data.data ?? [];
 };
 
 
@@ -612,11 +866,23 @@ export const getCharge = async (
 };
 
 
-/*
-|--------------------------------------------------------------------------
-| WALLET
-|--------------------------------------------------------------------------
-*/
+export const createCharge = async (
+  encounterId: string,
+  payload: {
+    serviceId: string;
+    quantity?: number;
+    description?: string;
+  }
+): Promise<Charge> => {
+  const response = await api.post<ApiResponse<Charge>>(
+    `/encounters/${encounterId}/charges`,
+    payload
+  );
+  return response.data.data;
+};
+
+
+//wallet
 
 export const getWallet = async (
   patientId: string
@@ -629,11 +895,7 @@ export const getWallet = async (
 };
 
 
-/*
-|--------------------------------------------------------------------------
-| PAYMENTS
-|--------------------------------------------------------------------------
-*/
+// Payments
 
 export const getPayments = async (
   chargeId: string
@@ -642,15 +904,28 @@ export const getPayments = async (
     `/charges/${chargeId}/payments`
   );
 
+  return response.data.data ?? [];
+};
+
+
+export const createPayment = async (
+  chargeId: string,
+  payload: {
+    amount: number;
+    method: string;
+    reference?: string;
+    notes?: string;
+  }
+): Promise<Payment> => {
+  const response = await api.post<ApiResponse<Payment>>(
+    `/charges/${chargeId}/payments`,
+    payload
+  );
   return response.data.data;
 };
 
 
-/*
-|--------------------------------------------------------------------------
-| ERROR HELPER
-|--------------------------------------------------------------------------
-*/
+// Error Helper
 
 export const getApiErrorMessage = (
   error: unknown
