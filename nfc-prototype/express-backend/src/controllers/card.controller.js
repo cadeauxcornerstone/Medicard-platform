@@ -67,8 +67,21 @@ export const getByUid = async (req, res, next) => {
 */
 
 export const identify = async (req, res, next) => {
+
+  /*
+  |--------------------------------------------------------------------------
+  | Keep cardUid outside try
+  |--------------------------------------------------------------------------
+  |
+  | The catch block also needs access to the original NFC UID
+  | when the card is not registered.
+  |
+  */
+
+  const cardUid = req.body?.cardUid;
+
+
   try {
-    const { cardUid } = req.body;
 
     if (!cardUid) {
       return res.status(400).json({
@@ -214,6 +227,20 @@ export const identify = async (req, res, next) => {
 
           message:
             error.message,
+
+          /*
+          |--------------------------------------------------------------------------
+          | Preserve the original NFC card UID
+          |--------------------------------------------------------------------------
+          |
+          | Reception can use this UID to link the card after
+          | registering the patient.
+          |
+          | No second physical tap is required.
+          |
+          */
+
+          cardUid,
         }
       );
     }

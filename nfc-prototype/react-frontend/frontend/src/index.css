@@ -267,6 +267,156 @@ button {
    DASHBOARD
 ========================= */
 
+
+/* ============================================================
+   RECEPTION — REGISTER NEW PATIENT
+============================================================ */
+
+.reception-registration-action {
+  margin-top: 22px;
+  padding: 20px 22px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+
+  border: 1px solid #dbe7f0;
+  border-radius: 18px;
+
+  background: linear-gradient(
+    135deg,
+    #ffffff 0%,
+    #f7fbfd 100%
+  );
+
+  box-shadow:
+    0 8px 28px rgba(15, 23, 42, 0.06);
+}
+
+
+.reception-registration-content {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+
+.reception-registration-icon {
+  width: 46px;
+  height: 46px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 13px;
+
+  background: #e9f7f4;
+  color: #0f766e;
+
+  flex-shrink: 0;
+}
+
+
+.reception-registration-content .eyebrow {
+  display: block;
+  margin-bottom: 4px;
+}
+
+
+.reception-registration-content h3 {
+  margin: 0;
+
+  font-size: 17px;
+  font-weight: 700;
+
+  color: #172033;
+}
+
+
+.reception-registration-content p {
+  margin: 5px 0 0;
+
+  max-width: 560px;
+
+  font-size: 13px;
+  line-height: 1.5;
+
+  color: #667085;
+}
+
+
+.reception-registration-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  min-height: 44px;
+  padding: 0 17px;
+
+  border: 0;
+  border-radius: 11px;
+
+  background: #0f766e;
+  color: #ffffff;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  white-space: nowrap;
+
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+
+.reception-registration-button:hover {
+  background: #0b625c;
+
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 7px 18px rgba(15, 118, 110, 0.22);
+}
+
+
+.reception-registration-button:active {
+  transform: translateY(0);
+}
+
+
+.reception-registration-button:focus-visible {
+  outline: 3px solid rgba(15, 118, 110, 0.2);
+  outline-offset: 2px;
+}
+
+
+@media (max-width: 760px) {
+
+  .reception-registration-action {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+
+  .reception-registration-button {
+    width: 100%;
+  }
+
+}
+
+
+
+
+
+
 .dashboard-layout {
   min-height: 100vh;
   display: flex;
@@ -23937,6 +24087,1354 @@ svg {
   }
 }
 
+
+
+
+
+/* ============================================================
+   MEDCARD — PATIENT REGISTRATION
+   Premium Clinical UI
+============================================================ */
+
+.patient-registration-page {
+  min-height: 100vh;
+
+  background:
+    radial-gradient(
+      circle at 8% 5%,
+      rgba(15, 118, 110, 0.08),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 92% 15%,
+      rgba(37, 99, 235, 0.06),
+      transparent 28%
+    ),
+    #f5f8fb;
+
+  color: #172033;
+}
+
+
+/* ============================================================
+   HEADER
+============================================================ */
+
+.patient-registration-header {
+  height: 72px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 42px;
+
+  background: rgba(255, 255, 255, 0.94);
+
+  border-bottom: 1px solid #e7edf3;
+
+  backdrop-filter: blur(14px);
+
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  border: 0;
+  background: transparent;
+
+  color: #64748b;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  padding: 9px 11px;
+  border-radius: 9px;
+
+  transition:
+    color 0.18s ease,
+    background 0.18s ease;
+}
+
+
+.back-button:hover {
+  color: #0f766e;
+  background: #f0fdfa;
+}
+
+
+.registration-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+
+.registration-brand strong {
+  display: block;
+
+  font-size: 18px;
+  line-height: 1.1;
+
+  letter-spacing: -0.4px;
+
+  color: #172033;
+}
+
+
+.registration-brand strong span {
+  color: #0f766e;
+}
+
+
+.registration-brand small {
+  display: block;
+
+  margin-top: 3px;
+
+  color: #94a3b8;
+
+  font-size: 10px;
+  font-weight: 600;
+
+  letter-spacing: 0.04em;
+}
+
+
+.brand-mark.small {
+  width: 38px;
+  height: 38px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 11px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #0f766e,
+      #149b90
+    );
+
+  color: white;
+
+  box-shadow:
+    0 6px 18px rgba(15, 118, 110, 0.18);
+}
+
+
+/* ============================================================
+   MAIN CONTAINER
+============================================================ */
+
+.patient-registration-container {
+  width: min(
+    1120px,
+    calc(100% - 48px)
+  );
+
+  margin: 0 auto;
+
+  padding: 52px 0 70px;
+}
+
+
+/* ============================================================
+   PAGE HEADING
+============================================================ */
+
+.patient-registration-heading {
+  margin-bottom: 30px;
+}
+
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+
+  margin-bottom: 9px;
+
+  color: #0f766e;
+
+  font-size: 10px;
+  font-weight: 800;
+
+  letter-spacing: 0.13em;
+}
+
+
+.patient-registration-heading h1 {
+  margin: 0;
+
+  color: #172033;
+
+  font-size: clamp(
+    30px,
+    4vw,
+    42px
+  );
+
+  line-height: 1.08;
+
+  letter-spacing: -1.3px;
+}
+
+
+.patient-registration-heading p {
+  max-width: 650px;
+
+  margin: 11px 0 0;
+
+  color: #667085;
+
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+
+/* ============================================================
+   NFC CARD
+============================================================ */
+
+.registration-nfc-card {
+  position: relative;
+
+  display: grid;
+
+  grid-template-columns:
+    82px
+    minmax(0, 1fr)
+    auto;
+
+  align-items: center;
+
+  gap: 22px;
+
+  padding: 23px 25px;
+
+  margin-bottom: 22px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #ffffff 0%,
+      #f9fcfd 100%
+    );
+
+  border: 1px solid #dce8ed;
+
+  border-radius: 20px;
+
+  box-shadow:
+    0 12px 34px rgba(15, 23, 42, 0.055);
+
+  overflow: hidden;
+
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
+}
+
+
+.registration-nfc-card::before {
+  content: "";
+
+  position: absolute;
+
+  left: 0;
+  top: 0;
+  bottom: 0;
+
+  width: 4px;
+
+  background: #cbd5e1;
+
+  transition:
+    background 0.25s ease;
+}
+
+
+.registration-nfc-card.available {
+  border-color: #a7ded7;
+
+  box-shadow:
+    0 14px 38px rgba(15, 118, 110, 0.10);
+}
+
+
+.registration-nfc-card.available::before {
+  background: #0f766e;
+}
+
+
+.registration-nfc-card.duplicate {
+  border-color: #fecaca;
+
+  background:
+    linear-gradient(
+      135deg,
+      #ffffff,
+      #fffafa
+    );
+}
+
+
+.registration-nfc-card.duplicate::before {
+  background: #dc2626;
+}
+
+
+/* ============================================================
+   NFC VISUAL
+============================================================ */
+
+.registration-nfc-visual {
+  width: 72px;
+  height: 72px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 20px;
+
+  color: #0f766e;
+
+  background:
+    radial-gradient(
+      circle,
+      #ffffff 25%,
+      #ecfdf9 70%
+    );
+
+  border: 1px solid #cce8e4;
+
+  box-shadow:
+    inset 0 0 0 7px rgba(15, 118, 110, 0.035);
+
+  position: relative;
+}
+
+
+.registration-nfc-visual::after {
+  content: "";
+
+  position: absolute;
+
+  inset: -6px;
+
+  border-radius: 24px;
+
+  border: 1px solid rgba(15, 118, 110, 0.10);
+
+  animation:
+    nfcPulse 2.4s ease-in-out infinite;
+}
+
+
+.registration-nfc-card.available
+.registration-nfc-visual {
+  color: #0f766e;
+}
+
+
+.registration-nfc-card.duplicate
+.registration-nfc-visual {
+  color: #dc2626;
+
+  background: #fff1f2;
+
+  border-color: #fecdd3;
+}
+
+
+@keyframes nfcPulse {
+
+  0%,
+  100% {
+    transform: scale(0.96);
+    opacity: 0.45;
+  }
+
+  50% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+}
+
+
+/* ============================================================
+   NFC CONTENT
+============================================================ */
+
+.registration-nfc-content {
+  min-width: 0;
+}
+
+
+.registration-nfc-label {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: #94a3b8;
+
+  font-size: 9px;
+  font-weight: 800;
+
+  letter-spacing: 0.13em;
+}
+
+
+.registration-nfc-content h2 {
+  margin: 0;
+
+  color: #172033;
+
+  font-size: 18px;
+  font-weight: 750;
+
+  letter-spacing: -0.3px;
+}
+
+
+.registration-nfc-card.duplicate
+.registration-nfc-content h2 {
+  color: #b91c1c;
+}
+
+
+.registration-nfc-content p {
+  margin: 6px 0 0;
+
+  color: #667085;
+
+  font-size: 13px;
+
+  line-height: 1.55;
+}
+
+
+/* ============================================================
+   CARD UID
+============================================================ */
+
+.registration-card-uid {
+  width: fit-content;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  margin-top: 12px;
+
+  padding: 7px 10px;
+
+  border-radius: 8px;
+
+  background: #f1f5f9;
+
+  color: #64748b;
+
+  font-size: 11px;
+}
+
+
+.registration-card-uid strong {
+  color: #172033;
+
+  font-family:
+    "SFMono-Regular",
+    Consolas,
+    monospace;
+
+  font-size: 12px;
+
+  letter-spacing: 0.04em;
+}
+
+
+/* ============================================================
+   NFC ACTION
+============================================================ */
+
+.registration-nfc-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+
+.registration-nfc-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  height: 40px;
+
+  padding: 0 13px;
+
+  border: 1px solid #fecaca;
+
+  border-radius: 9px;
+
+  background: #ffffff;
+
+  color: #b91c1c;
+
+  font-size: 12px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease;
+}
+
+
+.registration-nfc-actions button:hover {
+  background: #fff1f2;
+
+  border-color: #fca5a5;
+}
+
+
+.registration-card-ready {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  padding: 9px 12px;
+
+  border-radius: 9px;
+
+  background: #ecfdf5;
+
+  color: #047857;
+
+  font-size: 11px;
+  font-weight: 750;
+}
+
+
+/* ============================================================
+   ERROR
+============================================================ */
+
+.registration-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+
+  padding: 13px 15px;
+
+  margin-bottom: 20px;
+
+  border: 1px solid #fecaca;
+
+  border-radius: 12px;
+
+  background: #fff7f7;
+
+  color: #b91c1c;
+
+  font-size: 13px;
+
+  line-height: 1.5;
+}
+
+
+.registration-error svg {
+  flex-shrink: 0;
+
+  margin-top: 1px;
+}
+
+
+/* ============================================================
+   FORM
+============================================================ */
+
+.patient-registration-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+
+/* ============================================================
+   FORM SECTION
+============================================================ */
+
+.registration-form-section,
+.registration-link-section {
+  padding: 27px;
+
+  background: #ffffff;
+
+  border: 1px solid #e4ebf1;
+
+  border-radius: 19px;
+
+  box-shadow:
+    0 8px 30px rgba(15, 23, 42, 0.045);
+}
+
+
+.registration-section-heading {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 12px;
+
+  padding-bottom: 21px;
+
+  margin-bottom: 23px;
+
+  border-bottom: 1px solid #edf1f5;
+}
+
+
+.registration-section-heading > svg {
+  flex-shrink: 0;
+
+  margin-top: 2px;
+
+  color: #0f766e;
+}
+
+
+.registration-section-heading h2 {
+  margin: 0;
+
+  color: #172033;
+
+  font-size: 16px;
+  font-weight: 750;
+}
+
+
+.registration-section-heading p {
+  margin: 5px 0 0;
+
+  color: #7b8798;
+
+  font-size: 12px;
+
+  line-height: 1.5;
+}
+
+
+/* ============================================================
+   FORM GRID
+============================================================ */
+
+.registration-form-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 19px 20px;
+}
+
+
+.registration-field {
+  min-width: 0;
+}
+
+
+.registration-field label {
+  display: block;
+
+  margin-bottom: 7px;
+
+  color: #344054;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+
+.registration-input {
+  height: 47px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  padding: 0 13px;
+
+  background: #fbfcfe;
+
+  border: 1px solid #d9e2ea;
+
+  border-radius: 10px;
+
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+
+.registration-input:focus-within {
+  background: #ffffff;
+
+  border-color: #0f766e;
+
+  box-shadow:
+    0 0 0 3px rgba(15, 118, 110, 0.09);
+}
+
+
+.registration-input svg {
+  flex-shrink: 0;
+
+  color: #98a2b3;
+}
+
+
+.registration-input:focus-within svg {
+  color: #0f766e;
+}
+
+
+.registration-input input,
+.registration-input select {
+  width: 100%;
+  height: 100%;
+
+  border: 0;
+  outline: 0;
+
+  background: transparent;
+
+  color: #172033;
+
+  font-family: inherit;
+
+  font-size: 13px;
+}
+
+
+.registration-input input::placeholder {
+  color: #a5afbd;
+}
+
+
+.registration-input select {
+  cursor: pointer;
+}
+
+
+.registration-input input[type="date"] {
+  color: #475467;
+}
+
+
+/* ============================================================
+   CARD ASSIGNMENT
+============================================================ */
+
+.registration-link-section {
+  background:
+    linear-gradient(
+      135deg,
+      #ffffff,
+      #f9fcfc
+    );
+}
+
+
+.registration-card-id {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  padding: 15px 17px;
+
+  border: 1px solid #dce9e8;
+
+  border-radius: 12px;
+
+  background: #f8fbfb;
+}
+
+
+.registration-card-id span {
+  color: #667085;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+
+.registration-card-id strong {
+  color: #0f766e;
+
+  font-family:
+    "SFMono-Regular",
+    Consolas,
+    monospace;
+
+  font-size: 13px;
+
+  letter-spacing: 0.06em;
+}
+
+
+.registration-no-second-tap {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 9px;
+
+  margin-top: 13px;
+
+  color: #667085;
+
+  font-size: 11px;
+
+  line-height: 1.5;
+}
+
+
+.registration-no-second-tap svg {
+  flex-shrink: 0;
+
+  color: #0f766e;
+
+  margin-top: 1px;
+}
+
+
+/* ============================================================
+   ACTIONS
+============================================================ */
+
+.registration-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+
+  gap: 11px;
+
+  padding-top: 3px;
+}
+
+
+.registration-cancel,
+.registration-submit {
+  min-height: 46px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  padding: 0 19px;
+
+  border-radius: 10px;
+
+  font-family: inherit;
+
+  font-size: 13px;
+  font-weight: 750;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease;
+}
+
+
+.registration-cancel {
+  border: 1px solid #d8e0e8;
+
+  background: #ffffff;
+
+  color: #475467;
+}
+
+
+.registration-cancel:hover:not(:disabled) {
+  background: #f8fafc;
+
+  border-color: #c5d0da;
+}
+
+
+.registration-submit {
+  min-width: 230px;
+
+  border: 0;
+
+  background:
+    linear-gradient(
+      135deg,
+      #0f766e,
+      #12877e
+    );
+
+  color: #ffffff;
+
+  box-shadow:
+    0 7px 18px rgba(15, 118, 110, 0.18);
+}
+
+
+.registration-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 10px 24px rgba(15, 118, 110, 0.24);
+}
+
+
+.registration-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+
+.registration-submit:disabled,
+.registration-cancel:disabled {
+  cursor: not-allowed;
+
+  opacity: 0.52;
+
+  transform: none;
+
+  box-shadow: none;
+}
+
+
+.registration-submit:focus-visible,
+.registration-cancel:focus-visible {
+  outline: 3px solid rgba(15, 118, 110, 0.14);
+
+  outline-offset: 2px;
+}
+
+
+/* ============================================================
+   SECURITY
+============================================================ */
+
+.registration-security {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  padding: 5px 0 0;
+
+  color: #98a2b3;
+
+  font-size: 11px;
+
+  text-align: center;
+}
+
+
+.registration-security svg {
+  color: #0f766e;
+}
+
+
+/* ============================================================
+   SUCCESS SCREEN
+============================================================ */
+
+.registration-success-icon {
+  width: 78px;
+  height: 78px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0 auto 20px;
+
+  border-radius: 50%;
+
+  background:
+    radial-gradient(
+      circle,
+      #ecfdf5 0%,
+      #d1fae5 100%
+    );
+
+  color: #059669;
+
+  box-shadow:
+    0 0 0 10px rgba(16, 185, 129, 0.06);
+}
+
+
+.patient-registration-card {
+  width: min(
+    620px,
+    100%
+  );
+
+  margin: 70px auto;
+
+  padding: 46px;
+
+  background: #ffffff;
+
+  border: 1px solid #e4ebf1;
+
+  border-radius: 24px;
+
+  text-align: center;
+
+  box-shadow:
+    0 24px 70px rgba(15, 23, 42, 0.09);
+}
+
+
+.patient-registration-card .eyebrow {
+  justify-content: center;
+}
+
+
+.patient-registration-card h1 {
+  margin: 0;
+
+  color: #172033;
+
+  font-size: 28px;
+
+  letter-spacing: -0.7px;
+}
+
+
+.patient-registration-card > p {
+  margin: 12px auto 0;
+
+  max-width: 470px;
+
+  color: #667085;
+
+  font-size: 14px;
+
+  line-height: 1.65;
+}
+
+
+.patient-registration-card > p strong {
+  color: #0f766e;
+
+  font-family:
+    "SFMono-Regular",
+    Consolas,
+    monospace;
+}
+
+
+.registration-created-patient {
+  display: flex;
+  align-items: center;
+
+  gap: 11px;
+
+  width: fit-content;
+
+  margin: 25px auto;
+
+  padding: 12px 15px;
+
+  border: 1px solid #dce9e8;
+
+  border-radius: 12px;
+
+  background: #f8fbfb;
+
+  text-align: left;
+}
+
+
+.registration-created-patient > svg {
+  color: #0f766e;
+}
+
+
+.registration-created-patient strong {
+  display: block;
+
+  color: #172033;
+
+  font-size: 13px;
+}
+
+
+.registration-created-patient span {
+  display: block;
+
+  margin-top: 2px;
+
+  color: #7b8798;
+
+  font-family:
+    "SFMono-Regular",
+    Consolas,
+    monospace;
+
+  font-size: 10px;
+}
+
+
+.registration-loading {
+  display: inline-flex;
+  align-items: center;
+
+  gap: 8px;
+
+  margin-top: 8px;
+
+  color: #667085;
+
+  font-size: 12px;
+}
+
+
+/* ============================================================
+   SPINNER
+============================================================ */
+
+.spin {
+  animation:
+    registrationSpin 0.9s linear infinite;
+}
+
+
+@keyframes registrationSpin {
+
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+
+}
+
+
+/* ============================================================
+   RESPONSIVE
+============================================================ */
+
+@media (max-width: 900px) {
+
+  .patient-registration-header {
+    padding: 0 24px;
+  }
+
+
+  .patient-registration-container {
+    width: min(
+      calc(100% - 32px),
+      760px
+    );
+
+    padding-top: 38px;
+  }
+
+
+  .registration-nfc-card {
+    grid-template-columns:
+      70px
+      minmax(0, 1fr);
+  }
+
+
+  .registration-nfc-actions {
+    grid-column: 2;
+
+    justify-content: flex-start;
+  }
+
+}
+
+
+@media (max-width: 680px) {
+
+  .patient-registration-header {
+    height: 64px;
+
+    padding: 0 16px;
+  }
+
+
+  .back-button {
+    font-size: 0;
+  }
+
+
+  .back-button svg {
+    width: 20px;
+    height: 20px;
+  }
+
+
+  .registration-brand small {
+    display: none;
+  }
+
+
+  .patient-registration-container {
+    width: calc(100% - 24px);
+
+    padding: 30px 0 45px;
+  }
+
+
+  .patient-registration-heading {
+    margin-bottom: 22px;
+  }
+
+
+  .patient-registration-heading h1 {
+    font-size: 30px;
+  }
+
+
+  .patient-registration-heading p {
+    font-size: 13px;
+  }
+
+
+  .registration-nfc-card {
+    display: flex;
+    flex-direction: column;
+
+    align-items: stretch;
+
+    gap: 16px;
+
+    padding: 20px;
+  }
+
+
+  .registration-nfc-visual {
+    width: 62px;
+    height: 62px;
+  }
+
+
+  .registration-nfc-actions {
+    width: 100%;
+  }
+
+
+  .registration-nfc-actions button,
+  .registration-card-ready {
+    width: 100%;
+
+    justify-content: center;
+  }
+
+
+  .registration-form-section,
+  .registration-link-section {
+    padding: 21px 17px;
+
+    border-radius: 16px;
+  }
+
+
+  .registration-form-grid {
+    grid-template-columns: 1fr;
+
+    gap: 16px;
+  }
+
+
+  .registration-card-id {
+    flex-direction: column;
+
+    align-items: flex-start;
+
+    gap: 6px;
+  }
+
+
+  .registration-actions {
+    flex-direction: column-reverse;
+
+    align-items: stretch;
+  }
+
+
+  .registration-cancel,
+  .registration-submit {
+    width: 100%;
+  }
+
+
+  .registration-submit {
+    min-width: 0;
+  }
+
+
+  .patient-registration-card {
+    margin: 30px auto;
+
+    padding: 32px 21px;
+
+    border-radius: 19px;
+  }
+
+
+  .patient-registration-card h1 {
+    font-size: 24px;
+  }
+
+}
+
+
+/* ============================================================
+   REDUCED MOTION
+============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+
+  .registration-nfc-visual::after,
+  .spin {
+    animation: none;
+  }
+
+  .registration-submit,
+  .registration-cancel,
+  .registration-nfc-card,
+  .back-button {
+    transition: none;
+  }
+
+}
 
 
 

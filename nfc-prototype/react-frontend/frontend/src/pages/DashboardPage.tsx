@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+
 import {
   Activity,
   LayoutDashboard,
@@ -11,6 +12,7 @@ import {
   Bell,
   Search,
   Wifi,
+  UserRoundPlus,
 } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
@@ -525,15 +527,82 @@ function DashboardPage() {
 
 
           {/* =================================================
-              EXISTING PATIENT IDENTIFICATION PANEL
-          ================================================== */}
+    EXISTING PATIENT IDENTIFICATION PANEL
+================================================== */}
 
-          <PatientIdentificationPanel />
+<PatientIdentificationPanel />
 
 
-          {/* =================================================
-              NFC ACTIVITY
-          ================================================== */}
+{/* =================================================
+    RECEPTION — REGISTER NEW PATIENT
+================================================== */}
+
+{currentRole === "Reception" && (
+
+  <section className="reception-registration-action">
+
+    <div className="reception-registration-content">
+
+      <div className="reception-registration-icon">
+
+        <UserRoundPlus
+          size={22}
+        />
+
+      </div>
+
+
+      <div>
+
+        <span className="eyebrow">
+          NEW PATIENT
+        </span>
+
+
+        <h3>
+          Register a new patient
+        </h3>
+
+
+        <p>
+          Register a patient and automatically
+          link a new MedCard using the NFC reader.
+        </p>
+
+      </div>
+
+    </div>
+
+
+    <button
+      type="button"
+      className="reception-registration-button"
+      onClick={() =>
+        navigate("/register-patient")
+      }
+    >
+
+      <UserRoundPlus
+        size={18}
+      />
+
+      Register New Patient
+
+    </button>
+
+  </section>
+
+)}
+
+
+{/* =================================================
+    NFC ACTIVITY
+================================================== */}
+
+
+
+
+          
 
           {showWaitingExperience && (
 

@@ -15,6 +15,7 @@ import PatientWorkspacePage from "./pages/PatientWorkspacePage";
 import LaboratoryWorkspacePage from "./pages/LaboratoryWorkspacePage";
 import PharmacyWorkspacePage from "./pages/PharmacyWorkspacePage";
 import PaymentWorkspacePage from "./pages/PaymentWorkspacePage";
+import PatientRegistrationPage from "./pages/PatientRegistrationPage";
 
 
 function App() {
@@ -31,6 +32,19 @@ function App() {
           path="/"
           element={
             <LandingPage />
+          }
+        />
+
+
+        {/* =====================================================
+            PATIENT REGISTRATION
+            New patient + NFC card linking
+        ====================================================== */}
+
+        <Route
+          path="/register-patient"
+          element={
+            <PatientRegistrationPage />
           }
         />
 
