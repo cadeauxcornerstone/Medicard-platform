@@ -25,6 +25,8 @@ import walletRoutes from "./routes/wallet.routes.js";
 import pharmacyRoutes from "./routes/pharmacy.routes.js";
 import dispensingRoutes from "./routes/dispensing.routes.js";
 import encounterRoutes from "./routes/encounter.routes.js";
+import paymentIntentRoutes from "./routes/payment-intent.routes.js";
+
 
 
 
@@ -246,6 +248,11 @@ app.use(
   paymentRoutes
 );
 
+app.use(
+  "/api/v1/payment-intents",
+  paymentIntentRoutes
+);
+
 
 app.use(
   "/api/v1",
@@ -257,6 +264,9 @@ app.use(
   "/api/v1",
   encounterRoutes
 );
+
+
+
 
 
 

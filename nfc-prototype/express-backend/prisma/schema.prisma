@@ -61,6 +61,16 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum PaymentIntentStatus {
+  READY_FOR_TAP
+  CARD_DETECTED
+  PROCESSING
+  COMPLETED
+  CANCELLED
+  EXPIRED
+  FAILED
+}
+
 enum InsurancePlanStatus {
   ACTIVE
   INACTIVE
@@ -240,6 +250,7 @@ model User {
 
   encounters        Encounter[]        @relation("EncounterProvider")
   appointments      Appointment[]      @relation("AppointmentProvider")
+  paymentIntents    PaymentIntent[]
   clinicalNotes     ClinicalNote[]
   patientSessions   PatientSession[]
   diagnoses         Diagnosis[]
@@ -280,6 +291,7 @@ model Facility {
   encounters      Encounter[]
   appointments    Appointment[]
   patientSessions PatientSession[]
+  paymentIntents  PaymentIntent[]
 
   @@index([name])
   @@index([status])
@@ -320,6 +332,7 @@ model Patient {
   encounters        Encounter[]
   patientSessions   PatientSession[]
   patientInsurances PatientInsurance[]
+  paymentIntents    PaymentIntent[]
 
   allergies         Allergy[]
   medicalConditions MedicalCondition[]
@@ -1042,7 +1055,8 @@ model Charge {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  payments Payment[]
+  payments       Payment[]
+  paymentIntents PaymentIntent[]
 
   @@index([patientId])
   @@index([encounterId])
@@ -1081,12 +1095,51 @@ model Payment {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   paymentAuditLogs PaymentAuditLog[]
+  paymentIntent    PaymentIntent?
 
   @@index([chargeId])
   @@index([patientId])
   @@index([status])
   @@index([method])
   @@index([reference])
+}
+
+model PaymentIntent {
+  id String @id @default(uuid())
+
+  chargeId String
+  charge   Charge @relation(fields: [chargeId], references: [id], onDelete: Restrict)
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  amount   Decimal @db.Decimal(12, 2)
+  currency String  @default("RWF")
+
+  status PaymentIntentStatus @default(READY_FOR_TAP)
+
+  reference String @unique
+
+  expiresAt DateTime?
+
+  paymentId String?  @unique
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([chargeId])
+  @@index([patientId])
+  @@index([facilityId])
+  @@index([createdById])
+  @@index([status])
+  @@index([expiresAt])
 }
 
 /**
