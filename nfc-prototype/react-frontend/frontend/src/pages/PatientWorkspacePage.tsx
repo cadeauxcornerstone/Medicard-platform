@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 
 import LaboratoryOrderPanel from "../components/clinical/LaboratoryOrderPanel";
+import AppLayout from "../components/layout/AppLayout";
 
 const API_URL = "http://localhost:5000/api/v1";
 
@@ -1328,58 +1329,18 @@ function PatientWorkspacePage() {
   */
 
   return (
-    <div className="patient-workspace-page">
-
-      {/* =================================================
-          TOP BAR
-      ================================================== */}
-
-      <header className="patient-workspace-topbar">
-
-        <div className="workspace-brand">
-
-          <div className="workspace-brand-icon">
-            <Activity size={20} />
-          </div>
-
-          <div>
-            <strong>
-              Med<span>Card</span>
-            </strong>
-
-            <small>
-              Clinical workspace
-            </small>
-          </div>
-
-        </div>
-
-        <div className="workspace-topbar-actions">
-
-          <div className="workspace-live-status">
-            <span />
-            System operational
-          </div>
-
-          <button
-            type="button"
-            onClick={() =>
-              navigate("/dashboard")
-            }
-          >
-            <ArrowLeft size={17} />
-            Dashboard
-          </button>
-
-        </div>
-
-      </header>
-
-      {/* =================================================
-          MAIN
-      ================================================== */}
-
-      <main className="patient-workspace-main">
+    <AppLayout
+      pageTitle="Patient Consultation Workspace"
+      pageSubtitle={`King Faisal Hospital • ${patient.firstName} ${patient.lastName} (${patient.patientNumber})`}
+      actionButton={{
+        label: "Return to Patients",
+        onClick: () => navigate("/patients"),
+        icon: <ArrowLeft size={15} />,
+      }}
+    >
+      <div className="patient-workspace-page" style={{ minHeight: "auto", background: "transparent" }}>
+        {/* MAIN */}
+        <main className="patient-workspace-main" style={{ padding: 0 }}>
 
         {/* BREADCRUMB */}
 
@@ -1402,9 +1363,9 @@ function PatientWorkspacePage() {
 
         </div>
 
-        {/* =================================================
-            PATIENT HERO
-        ================================================== */}
+        {/*
+            pateint identity
+         */}
 
         <section className="patient-workspace-hero">
 
@@ -3254,7 +3215,7 @@ function PatientWorkspacePage() {
 
         </section>
                 {/* =================================================
-            PRESCRIPTION HISTORY
+            Prescription History
         ================================================== */}
 
         <section className="clinical-history-section">
@@ -3800,9 +3761,9 @@ function PatientWorkspacePage() {
         </section>
 
 
-        {/* =================================================
-            SYSTEM FOOTER
-        ================================================== */}
+        {/* 
+            System footer
+         */}
 
         <section className="workspace-system-footer">
 
@@ -3844,6 +3805,7 @@ function PatientWorkspacePage() {
       </main>
 
     </div>
+    </AppLayout>
   );
 }
 

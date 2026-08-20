@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  ArrowLeft,
-  CreditCard,
   Wifi,
   ShieldCheck,
   CheckCircle2,
@@ -13,6 +11,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
+import AppLayout from "../components/layout/AppLayout";
 import { SOCKET_URL, getPatients } from "../services/api";
 
 const PENDING_CARD_KEY = "medcard_pending_card_uid";
@@ -259,38 +258,26 @@ function NFCScannerPage() {
   const isError = scannerStatus === "ERROR";
 
   return (
-    <div className="nfc-page">
-      {/* HEADER */}
-      <header className="nfc-page-header">
-        <button className="back-button" onClick={() => navigate("/dashboard")}>
-          <ArrowLeft size={18} />
-          Back to dashboard
-        </button>
-
-        <div className="nfc-page-brand">
-          <div className="brand-mark small">
-            <CreditCard size={20} />
+    <AppLayout
+      pageTitle="NFC Patient Identification"
+      pageSubtitle="King Faisal Hospital • Contactless MedCard Scanner"
+      actionButton={{
+        label: "Hardware Diagnostics",
+        onClick: handleReset,
+        icon: <RefreshCw size={15} />,
+      }}
+    >
+      <div className="nfc-page" style={{ minHeight: "auto", padding: 0 }}>
+        {/* MAIN */}
+        <main className="nfc-scanner-content" style={{ padding: 0, margin: "0 auto" }}>
+          <div className="nfc-scanner-header">
+            <span className="eyebrow">PATIENT IDENTIFICATION</span>
+            <h1>Scan MedCard</h1>
+            <p>
+              Use the connected NFC reader or trigger an instant demo tap to
+              identify a patient.
+            </p>
           </div>
-
-          <div>
-            <strong>
-              Med<span>Card</span>
-            </strong>
-            <small>NFC Patient Identification</small>
-          </div>
-        </div>
-      </header>
-
-      {/* MAIN */}
-      <main className="nfc-scanner-content">
-        <div className="nfc-scanner-header">
-          <span className="eyebrow">PATIENT IDENTIFICATION</span>
-          <h1>Scan MedCard</h1>
-          <p>
-            Use the connected NFC reader or trigger an instant demo tap to
-            identify a patient.
-          </p>
-        </div>
 
         {/* SCANNER CARD */}
         <section className="scanner-card">
@@ -458,6 +445,7 @@ function NFCScannerPage() {
         </div>
       </main>
     </div>
+    </AppLayout>
   );
 }
 
