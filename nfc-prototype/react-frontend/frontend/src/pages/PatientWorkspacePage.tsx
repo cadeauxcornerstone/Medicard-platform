@@ -1653,9 +1653,9 @@ function PatientWorkspacePage() {
                   <div>
                     <span>Status</span>
 
-                    <strong>
+                    <span className={`clinical-status-badge ${(encounter?.status || "").toLowerCase()}`}>
                       {encounter?.status || "Loading..."}
-                    </strong>
+                    </span>
                   </div>
 
                   <div>
@@ -1750,6 +1750,7 @@ function PatientWorkspacePage() {
 
                   <button
                     type="button"
+                    className="action-pill-btn primary"
                     onClick={
                       handleCompleteEncounter
                     }
@@ -1932,10 +1933,10 @@ function PatientWorkspacePage() {
                   Status
                 </span>
 
-                <strong>
+                <span className={`clinical-status-badge ${(activeCard?.status || "active").toLowerCase()}`}>
                   {activeCard?.status ||
-                    "Not available"}
-                </strong>
+                    "ACTIVE"}
+                </span>
               </div>
 
               <div>
@@ -2522,7 +2523,7 @@ function PatientWorkspacePage() {
                             {diagnosis.description}
                           </strong>
 
-                          <span>
+                          <span className="clinical-status-badge active">
                             {diagnosis.diagnosisType}
                           </span>
 
@@ -2531,8 +2532,7 @@ function PatientWorkspacePage() {
                         <div className="workspace-history-meta">
 
                           {diagnosis.code && (
-                            <span>
-                              Code:{" "}
+                            <span className="lab-test-code">
                               {diagnosis.code}
                             </span>
                           )}
@@ -3129,7 +3129,7 @@ function PatientWorkspacePage() {
                             Prescription
                           </strong>
 
-                          <span>
+                          <span className={`clinical-status-badge ${(prescription.status || "active").toLowerCase()}`}>
                             {prescription.status}
                           </span>
 
@@ -3146,7 +3146,7 @@ function PatientWorkspacePage() {
 
                           {prescription.prescribedBy && (
                             <span>
-                              By{" "}
+                              • By Dr.{" "}
                               {
                                 prescription
                                   .prescribedBy

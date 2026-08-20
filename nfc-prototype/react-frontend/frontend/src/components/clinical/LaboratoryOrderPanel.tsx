@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import {
   Beaker,
+  Check,
   CheckCircle2,
   ClipboardList,
   CreditCard,
@@ -709,160 +710,40 @@ function LaboratoryOrderPanel({
         {/* TESTS */}
 
         <div className="clinical-field">
+          <label>Laboratory tests</label>
 
-          <label>
-            Laboratory tests
-          </label>
+          <div className="lab-tests-selection-grid">
+            {AVAILABLE_TESTS.map((test) => {
+              const selected = selectedTests.includes(test.id);
 
-          <div
-            style={{
-              display: "grid",
-
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(280px, 1fr))",
-
-              gap: "12px",
-
-              marginTop: "10px",
-            }}
-          >
-
-            {AVAILABLE_TESTS.map(
-              (test) => {
-
-                const selected =
-                  selectedTests.includes(
-                    test.id
-                  );
-
-                return (
-                  <button
-                    key={test.id}
-                    type="button"
-
-                    onClick={() =>
-                      toggleTest(
-                        test.id
-                      )
-                    }
-
-                    disabled={
-                      disabled ||
-                      submitting ||
-                      !encounterId
-                    }
-
-                    style={{
-                      textAlign:
-                        "left",
-
-                      padding:
-                        "16px",
-
-                      borderRadius:
-                        "12px",
-
-                      border: selected
-                        ? "2px solid #2563eb"
-                        : "1px solid #dbe2ea",
-
-                      background:
-                        selected
-                          ? "#eff6ff"
-                          : "#ffffff",
-
-                      cursor:
-                        disabled ||
-                        submitting ||
-                        !encounterId
-                          ? "not-allowed"
-                          : "pointer",
-                    }}
-                  >
-
-                    <div
-                      style={{
-                        display:
-                          "flex",
-
-                        alignItems:
-                          "center",
-
-                        gap: "10px",
-                      }}
-                    >
-
-                      <input
-                        type="checkbox"
-                        checked={
-                          selected
-                        }
-                        readOnly
-                      />
-
-                      <strong>
-                        {test.name}
-                      </strong>
-
+              return (
+                <button
+                  key={test.id}
+                  type="button"
+                  onClick={() => toggleTest(test.id)}
+                  disabled={disabled || submitting || !encounterId}
+                  className={`lab-test-select-card ${selected ? "is-selected" : ""}`}
+                >
+                  <div className="lab-test-card-header">
+                    <div className={`lab-test-checkbox ${selected ? "checked" : ""}`}>
+                      {selected && <Check size={13} strokeWidth={3} />}
                     </div>
+                    <strong className="lab-test-name">{test.name}</strong>
+                  </div>
 
-                    <small
-                      style={{
-                        display:
-                          "block",
-
-                        marginTop:
-                          "8px",
-
-                        color:
-                          "#64748b",
-                      }}
-                    >
-                      {
-                        test.description
-                      }
-                    </small>
-
-                    <small
-                      style={{
-                        display:
-                          "block",
-
-                        marginTop:
-                          "5px",
-
-                        color:
-                          "#94a3b8",
-                      }}
-                    >
-                      Service:{" "}
-                      {test.code}
-                    </small>
-
-                  </button>
-                );
-              }
-            )}
-
+                  <span className="lab-test-code">{test.code}</span>
+                  <p className="lab-test-description">{test.description}</p>
+                </button>
+              );
+            })}
           </div>
 
-          <small
-            style={{
-              display:
-                "block",
-
-              marginTop:
-                "10px",
-            }}
-          >
-            {selectedTests.length} test
-            {selectedTests.length ===
-            1
-              ? ""
-              : "s"}{" "}
-            selected
-          </small>
-
+          <div className="lab-selected-count-badge">
+            <Beaker size={14} />
+            <span>
+              {selectedTests.length} test{selectedTests.length === 1 ? "" : "s"} selected
+            </span>
+          </div>
         </div>
 
 
@@ -1081,7 +962,7 @@ function LaboratoryOrderPanel({
 
           <button
             type="submit"
-
+            className="action-pill-btn primary"
             disabled={
               disabled ||
               submitting ||
