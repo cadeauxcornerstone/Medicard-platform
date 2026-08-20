@@ -1,6 +1,7 @@
 import ctypes
+
 from ctypes import wintypes
-from typing import Callable
+from typing import Callable, Optional
 
 import win32api
 import win32gui
@@ -12,13 +13,9 @@ import win32gui
 
 RID_INPUT = 0x10000003
 RIM_TYPEKEYBOARD = 1
-
 WM_INPUT = 0x00FF
-
 RI_KEY_BREAK = 0x0001
-
 RIDEV_INPUTSINK = 0x00000100
-
 RIDI_DEVICENAME = 0x20000007
 
 
@@ -38,6 +35,7 @@ NFC_DEVICE = (
 # ============================================================
 
 class RAWINPUTDEVICE(ctypes.Structure):
+
     _fields_ = [
         ("usUsagePage", wintypes.USHORT),
         ("usUsage", wintypes.USHORT),
@@ -47,6 +45,7 @@ class RAWINPUTDEVICE(ctypes.Structure):
 
 
 class RAWINPUTHEADER(ctypes.Structure):
+
     _fields_ = [
         ("dwType", wintypes.DWORD),
         ("dwSize", wintypes.DWORD),
@@ -56,6 +55,7 @@ class RAWINPUTHEADER(ctypes.Structure):
 
 
 class RAWKEYBOARD(ctypes.Structure):
+
     _fields_ = [
         ("MakeCode", wintypes.USHORT),
         ("Flags", wintypes.USHORT),
@@ -67,12 +67,14 @@ class RAWKEYBOARD(ctypes.Structure):
 
 
 class RAWINPUTUNION(ctypes.Union):
+
     _fields_ = [
         ("keyboard", RAWKEYBOARD),
     ]
 
 
 class RAWINPUT(ctypes.Structure):
+
     _fields_ = [
         ("header", RAWINPUTHEADER),
         ("data", RAWINPUTUNION),
@@ -80,21 +82,73 @@ class RAWINPUT(ctypes.Structure):
 
 
 # ============================================================
-# NFC READER CLASS
+# NFC READER
 # ============================================================
 
 class NFCReader:
 
     def __init__(
         self,
-        on_card_detected: Callable[[str], None],
+        on_card_detected: Optional[Callable[[str], None]] = None,
     ):
+
         self.on_card_detected = on_card_detected
+
+        # UID currently being processed.
+        self.active_card_uid = None
+
+        # Prevents another event from being processed while
+        # the current callback is running.
+        self.processing_card = False
+
+        # HID input buffer.
         self.buffer = ""
 
-    # --------------------------------------------------------
-    # Get Windows device name
-    # --------------------------------------------------------
+    # ========================================================
+    # FINISH CURRENT CARD PROCESSING
+    # ========================================================
+
+    def finish_card_processing(self):
+
+        print()
+        print("NFC card processing finished.")
+
+        self.processing_card = False
+
+        # Clear the active UID so the same physical card can
+        # be used again for a future tap.
+        self.active_card_uid = None
+
+        self.buffer = ""
+
+        print(
+            "Reader ready for next card."
+        )
+
+        print()
+
+    # ========================================================
+    # RESET READER STATE
+    # ========================================================
+
+    def reset_card(self):
+
+        print()
+        print("Resetting NFC reader state...")
+
+        self.active_card_uid = None
+        self.processing_card = False
+        self.buffer = ""
+
+        print(
+            "Reader ready for next card."
+        )
+
+        print()
+
+    # ========================================================
+    # GET WINDOWS DEVICE NAME
+    # ========================================================
 
     def get_device_name(self, device_handle):
 
@@ -128,9 +182,9 @@ class NFCReader:
 
         return buffer.value
 
-    # --------------------------------------------------------
-    # Process raw keyboard input
-    # --------------------------------------------------------
+    # ========================================================
+    # PROCESS RAW KEYBOARD INPUT
+    # ========================================================
 
     def process_input(self, lparam):
 
@@ -149,7 +203,9 @@ class NFCReader:
         if result == -1 or size.value == 0:
             return
 
-        buffer = ctypes.create_string_buffer(size.value)
+        buffer = ctypes.create_string_buffer(
+            size.value
+        )
 
         result = user32.GetRawInputData(
             lparam,
@@ -167,57 +223,160 @@ class NFCReader:
             ctypes.POINTER(RAWINPUT)
         ).contents
 
-        # Ignore anything that isn't a keyboard.
+        # ----------------------------------------------------
+        # ONLY PROCESS KEYBOARD RAW INPUT
+        # ----------------------------------------------------
+
         if raw.header.dwType != RIM_TYPEKEYBOARD:
             return
+
+        # ----------------------------------------------------
+        # IDENTIFY THE PHYSICAL NFC READER
+        # ----------------------------------------------------
 
         device_name = self.get_device_name(
             raw.header.hDevice
         )
 
-        # ====================================================
-        # CRITICAL SECURITY FILTER
+        # ----------------------------------------------------
+        # SECURITY FILTER
         #
-        # Ignore every keyboard except our NFC reader.
-        # ====================================================
+        # Ignore every keyboard except the MedCard NFC reader.
+        # ----------------------------------------------------
 
         if device_name != NFC_DEVICE:
             return
 
         keyboard = raw.data.keyboard
 
-        # Ignore key release events.
+        # ----------------------------------------------------
+        # IGNORE KEY RELEASE EVENTS
+        # ----------------------------------------------------
+
         if keyboard.Flags & RI_KEY_BREAK:
             return
 
         vk = keyboard.VKey
 
-        # ----------------------------------------------------
-        # ENTER = end of card UID
-        # ----------------------------------------------------
+        # ====================================================
+        # ENTER = COMPLETE UID
+        # ====================================================
 
         if vk == 0x0D:
 
-            if self.buffer:
+            if not self.buffer:
+                return
 
-                card_uid = self.buffer
+            card_uid = self.buffer
 
-                self.buffer = ""
+            # Clear buffer immediately.
+            self.buffer = ""
+
+            print()
+            print("=" * 60)
+            print("NFC CARD DETECTED")
+            print("=" * 60)
+            print(
+                f"UID: {card_uid}"
+            )
+            print()
+
+            # =================================================
+            # DUPLICATE PROTECTION
+            # =================================================
+
+            if (
+                self.active_card_uid == card_uid
+                and self.processing_card
+            ):
+
+                print(
+                    "Duplicate NFC read ignored."
+                )
+
+                print(
+                    f"Card {card_uid} "
+                    f"is already being processed."
+                )
 
                 print()
-                print("=" * 60)
-                print("NFC CARD DETECTED")
-                print("=" * 60)
-                print(f"UID: {card_uid}")
+
+                return
+
+            # =================================================
+            # PROCESSING LOCK
+            # =================================================
+
+            if self.processing_card:
+
+                print(
+                    "NFC event ignored because "
+                    "another card transaction "
+                    "is still processing."
+                )
+
                 print()
 
-                self.on_card_detected(card_uid)
+                return
+
+            # =================================================
+            # ACCEPT CARD
+            # =================================================
+
+            self.active_card_uid = card_uid
+            self.processing_card = True
+
+            print(
+                "✓ New NFC card accepted."
+            )
+
+            print(
+                "Sending card to MedCard application..."
+            )
+
+            print()
+
+            # =================================================
+            # CALLBACK
+            # =================================================
+
+            if self.on_card_detected is None:
+
+                print(
+                    "⚠ No card detection callback "
+                    "is configured."
+                )
+
+                self.finish_card_processing()
+
+                return
+
+            try:
+
+                self.on_card_detected(
+                    card_uid
+                )
+
+            except Exception as error:
+
+                print()
+                print(
+                    "✗ NFC callback failed."
+                )
+
+                print(
+                    f"Error: {error}"
+                )
+
+                # Make sure a failed callback never leaves
+                # the reader permanently locked.
+                self.finish_card_processing()
 
             return
 
-        # ----------------------------------------------------
-        # Number keys
-        # ----------------------------------------------------
+        # ====================================================
+        # NUMBER KEYS
+        # ====================================================
 
         if 0x30 <= vk <= 0x39:
 
@@ -231,9 +390,9 @@ class NFCReader:
                 flush=True,
             )
 
-    # --------------------------------------------------------
-    # Windows window procedure
-    # --------------------------------------------------------
+    # ========================================================
+    # WINDOWS WINDOW PROCEDURE
+    # ========================================================
 
     def window_proc(
         self,
@@ -245,7 +404,9 @@ class NFCReader:
 
         if msg == WM_INPUT:
 
-            self.process_input(lparam)
+            self.process_input(
+                lparam
+            )
 
             return 0
 
@@ -256,37 +417,96 @@ class NFCReader:
             lparam,
         )
 
-    # --------------------------------------------------------
-    # Start reader
-    # --------------------------------------------------------
+    # ========================================================
+    # START NFC READER
+    # ========================================================
 
     def start(self):
 
         print("=" * 60)
-        print("MEDCARD NFC SERVICE")
+
+        print(
+            "MEDCARD NFC SERVICE"
+        )
+
         print("=" * 60)
-        print()
-        print("NFC reader:")
-        print("VID_FFFF / PID_0035")
-        print()
-        print("Normal keyboard input: IGNORED")
-        print("NFC reader input: ACCEPTED")
-        print()
-        print("Reader service started.")
-        print("Waiting for MedCard...")
+
         print()
 
-        class_name = "MedCardNFCReader"
+        print(
+            "NFC reader:"
+        )
+
+        print(
+            "VID_FFFF / PID_0035"
+        )
+
+        print()
+
+        print(
+            "Normal keyboard input: IGNORED"
+        )
+
+        print(
+            "NFC reader input: ACCEPTED"
+        )
+
+        print()
+
+        print(
+            "Duplicate card protection: ENABLED"
+        )
+
+        print(
+            "One request per processing event: ENABLED"
+        )
+
+        print(
+            "Same card can be used again after "
+            "processing: ENABLED"
+        )
+
+        print()
+
+        print(
+            "Reader service started."
+        )
+
+        print(
+            "Waiting for MedCard..."
+        )
+
+        print()
+
+        # ====================================================
+        # WINDOWS WINDOW CLASS
+        # ====================================================
+
+        class_name = (
+            "MedCardNFCReader"
+        )
 
         wc = win32gui.WNDCLASS()
 
-        wc.lpfnWndProc = self.window_proc
+        wc.lpfnWndProc = (
+            self.window_proc
+        )
 
-        wc.lpszClassName = class_name
+        wc.lpszClassName = (
+            class_name
+        )
 
-        wc.hInstance = win32api.GetModuleHandle(None)
+        wc.hInstance = (
+            win32api.GetModuleHandle(None)
+        )
 
-        atom = win32gui.RegisterClass(wc)
+        atom = win32gui.RegisterClass(
+            wc
+        )
+
+        # ====================================================
+        # CREATE HIDDEN WINDOW
+        # ====================================================
 
         hwnd = win32gui.CreateWindow(
             atom,
@@ -302,9 +522,9 @@ class NFCReader:
             None,
         )
 
-        # ----------------------------------------------------
-        # Register Raw Input for USB HID keyboards
-        # ----------------------------------------------------
+        # ====================================================
+        # REGISTER RAW INPUT
+        # ====================================================
 
         device = RAWINPUTDEVICE(
             usUsagePage=0x01,
@@ -315,17 +535,28 @@ class NFCReader:
 
         user32 = ctypes.windll.user32
 
-        success = user32.RegisterRawInputDevices(
-            ctypes.byref(device),
-            1,
-            ctypes.sizeof(RAWINPUTDEVICE),
+        success = (
+            user32.RegisterRawInputDevices(
+                ctypes.byref(device),
+                1,
+                ctypes.sizeof(
+                    RAWINPUTDEVICE
+                ),
+            )
         )
 
         if not success:
 
             raise ctypes.WinError()
 
-        print("Raw Input registered successfully.")
+        print(
+            "Raw Input registered successfully."
+        )
+
         print()
+
+        # ====================================================
+        # WINDOWS MESSAGE LOOP
+        # ====================================================
 
         win32gui.PumpMessages()

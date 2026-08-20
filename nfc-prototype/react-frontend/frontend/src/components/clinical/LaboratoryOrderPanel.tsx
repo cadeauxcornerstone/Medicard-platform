@@ -1,23 +1,21 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import {
   Beaker,
   CheckCircle2,
   ClipboardList,
+  CreditCard,
   LoaderCircle,
   Send,
   ShieldCheck,
 } from "lucide-react";
 
-const API_URL = "http://localhost:5000/api/v1";
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "http://localhost:5000/api/v1";
 
 const DEVELOPMENT_USER_ID =
+  import.meta.env.VITE_DEMO_USER_ID ||
   "ac844b2b-cc1b-45a4-9404-e059fdd6df0b";
-
-/*
-|--------------------------------------------------------------------------
-| TYPES
-|--------------------------------------------------------------------------
-*/
 
 interface LaboratoryOrderPanelProps {
   patientId: string;
@@ -28,72 +26,132 @@ interface LaboratoryOrderPanelProps {
 interface LaboratoryTest {
   id: string;
   name: string;
+  code: string;
   description: string;
 }
 
 interface LaboratoryRequest {
   id: string;
   status: string;
-  clinicalIndication: string | null;
-  notes: string | null;
-  requestedAt: string;
+  clinicalIndication?: string | null;
+  notes?: string | null;
+  requestedAt?: string;
+}
+
+interface CreatedCharge {
+  id: string;
+  patientId: string;
+  encounterId: string;
+  serviceId: string;
+  servicePriceId?: string | null;
+  quantity: number;
+  unitPrice: number | string;
+  subtotal: number | string;
+  insuranceAmount: number | string;
+  patientAmount: number | string;
+  currency: string;
+  status: string;
+  description?: string | null;
 }
 
 /*
 |--------------------------------------------------------------------------
 | AVAILABLE LABORATORY TESTS
 |--------------------------------------------------------------------------
+|
+| These are the tests displayed to the doctor.
+|
+| IMPORTANT:
+| We do NOT hard-code service UUIDs here.
+|
+| When the doctor orders a test, the component searches the MedCard
+| service catalogue using the test name and gets the REAL serviceId
+| from the backend.
+|
+|--------------------------------------------------------------------------
 */
 
 const AVAILABLE_TESTS: LaboratoryTest[] = [
   {
     id: "cbc",
-    name: "Complete Blood Count (CBC)",
+    name: "Complete Blood Count",
+    code: "LAB-CBC",
     description:
-      "Red cells, white cells, hemoglobin and platelet assessment.",
+      "Measures red blood cells, white blood cells, hemoglobin and platelets.",
   },
 
   {
     id: "glucose",
-    name: "Blood Glucose",
+    name: "Blood Glucose Test",
+    code: "LAB-GLUCOSE",
     description:
-      "Measurement of blood glucose level.",
+      "Measures the level of glucose in the blood.",
+  },
+
+  {
+    id: "lipid",
+    name: "Lipid Profile",
+    code: "LAB-LIPID",
+    description:
+      "Measures cholesterol and triglyceride levels.",
   },
 
   {
     id: "malaria",
     name: "Malaria Test",
+    code: "LAB-MALARIA",
     description:
-      "Laboratory investigation for malaria infection.",
+      "Laboratory investigation for malaria parasites.",
   },
 
   {
     id: "urinalysis",
     name: "Urinalysis",
+    code: "LAB-URINALYSIS",
     description:
-      "Routine examination of urine.",
+      "Examines urine for signs of infection and other abnormalities.",
   },
 
   {
-    id: "liver",
-    name: "Liver Function Tests",
+    id: "hiv",
+    name: "HIV Test",
+    code: "LAB-HIV",
     description:
-      "Laboratory assessment of liver-related markers.",
+      "Laboratory screening test for HIV infection.",
   },
 
   {
-    id: "renal",
-    name: "Renal Function Tests",
+    id: "hepatitis-b",
+    name: "Hepatitis B Test",
+    code: "LAB-HBV",
     description:
-      "Assessment of kidney-related laboratory markers.",
+      "Screens for hepatitis B infection.",
+  },
+
+  {
+    id: "pregnancy",
+    name: "Pregnancy Test",
+    code: "LAB-PREGNANCY",
+    description:
+      "Detects pregnancy using a laboratory test.",
+  },
+
+  {
+    id: "liver-function",
+    name: "Liver Function Test",
+    code: "LAB-LFT",
+    description:
+      "Assesses laboratory markers associated with liver function.",
+  },
+
+  {
+    id: "kidney-function",
+    name: "Kidney Function Test",
+    code: "LAB-KFT",
+    description:
+      "Assesses laboratory markers associated with kidney function.",
   },
 ];
-
-/*
-|--------------------------------------------------------------------------
-| COMPONENT
-|--------------------------------------------------------------------------
-*/
 
 function LaboratoryOrderPanel({
   patientId,
@@ -103,11 +161,12 @@ function LaboratoryOrderPanel({
   const [selectedTests, setSelectedTests] =
     useState<string[]>([]);
 
-  const [clinicalIndication, setClinicalIndication] =
-    useState("");
+  const [
+    clinicalIndication,
+    setClinicalIndication,
+  ] = useState("");
 
-  const [notes, setNotes] =
-    useState("");
+  const [notes, setNotes] = useState("");
 
   const [submitting, setSubmitting] =
     useState(false);
@@ -121,141 +180,431 @@ function LaboratoryOrderPanel({
   const [request, setRequest] =
     useState<LaboratoryRequest | null>(null);
 
+  const [createdCharges, setCreatedCharges] =
+    useState<CreatedCharge[]>([]);
+
   /*
   |--------------------------------------------------------------------------
   | TOGGLE TEST
   |--------------------------------------------------------------------------
   */
 
-  const toggleTest = (
-    testName: string
-  ) => {
+  const toggleTest = (testId: string) => {
     if (disabled || submitting) {
       return;
     }
 
     setSelectedTests((current) =>
-      current.includes(testName)
+      current.includes(testId)
         ? current.filter(
-            (name) =>
-              name !== testName
+            (id) => id !== testId
           )
-        : [
-            ...current,
-            testName,
-          ]
+        : [...current, testId]
     );
+
+    setErrorMessage("");
+    setSuccessMessage("");
   };
 
   /*
   |--------------------------------------------------------------------------
-  | SUBMIT LABORATORY REQUEST
+  | FIND BACKEND SERVICE
+  |--------------------------------------------------------------------------
+  |
+  | The frontend test ID is NOT the database service ID.
+  |
+  | Example:
+  |
+  | "Complete Blood Count"
+  |          ↓
+  | GET /services?search=Complete%20Blood%20Count
+  |          ↓
+  | service.id
+  |          ↓
+  | POST /encounters/:encounterId/charges
+  |
+  |--------------------------------------------------------------------------
+  */
+
+  const findBackendService = async (
+    test: LaboratoryTest
+  ) => {
+    const response = await fetch(
+      `${API_URL}/services?search=${encodeURIComponent(
+        test.name
+      )}`
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result?.message ||
+          `Unable to find laboratory service "${test.name}".`
+      );
+    }
+
+    const services = Array.isArray(result?.data)
+      ? result.data
+      : [];
+
+    /*
+     * Prefer exact name match.
+     */
+    const exactMatch = services.find(
+      (service: any) =>
+        String(service?.name || "")
+          .trim()
+          .toLowerCase() ===
+        test.name.trim().toLowerCase()
+    );
+
+    const service = exactMatch || services[0];
+
+    if (!service?.id) {
+      throw new Error(
+        `Laboratory service "${test.name}" is not registered in the MedCard service catalogue.`
+      );
+    }
+
+    return service;
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | CREATE BILLING CHARGE
+  |--------------------------------------------------------------------------
+  |
+  | THIS IS THE SAME OPERATION YOU SUCCESSFULLY TESTED IN POWERSHELL.
+  |
+  | Terminal:
+  |
+  | POST /encounters/:encounterId/charges
+  |
+  | {
+  |   patientId,
+  |   serviceId,
+  |   quantity,
+  |   description
+  | }
+  |
+  |--------------------------------------------------------------------------
+  */
+
+  const createLaboratoryCharge = async (
+    test: LaboratoryTest
+  ): Promise<CreatedCharge> => {
+    const service =
+      await findBackendService(test);
+
+    console.log(
+      "[MedCard] Creating laboratory charge",
+      {
+        patientId,
+        encounterId,
+        serviceId: service.id,
+        serviceName: service.name,
+        test: test.name,
+      }
+    );
+
+    const response = await fetch(
+      `${API_URL}/encounters/${encodeURIComponent(
+        encounterId as string
+      )}/charges`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          patientId,
+
+          serviceId: service.id,
+
+          quantity: 1,
+
+          description:
+            `Laboratory — ${test.name}`,
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    console.log(
+      "[MedCard] Charge response",
+      result
+    );
+
+    if (
+      !response.ok ||
+      !result?.success
+    ) {
+      throw new Error(
+        result?.message ||
+          `Failed to create charge for ${test.name}.`
+      );
+    }
+
+    return result.data as CreatedCharge;
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | SUBMIT LABORATORY ORDER
   |--------------------------------------------------------------------------
   */
 
   const handleSubmit = async (
-    event: React.FormEvent
+    event: FormEvent
   ) => {
     event.preventDefault();
 
-    setSuccessMessage("");
     setErrorMessage("");
+    setSuccessMessage("");
+    setCreatedCharges([]);
+    setRequest(null);
 
-    if (disabled) {
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDATION
+    |--------------------------------------------------------------------------
+    */
+
+    if (!patientId) {
       setErrorMessage(
-        "Laboratory ordering is unavailable because the encounter has been completed."
+        "Patient ID is missing."
       );
-
       return;
     }
 
     if (!encounterId) {
       setErrorMessage(
-        "A clinical encounter is required before ordering laboratory tests."
+        "No active encounter was found. Open the patient from an active clinical encounter."
       );
-
       return;
     }
 
-    if (!patientId) {
+    if (disabled) {
       setErrorMessage(
-        "Patient information is missing."
+        "This encounter is completed. Laboratory orders cannot be added."
       );
-
       return;
     }
 
-    if (selectedTests.length === 0) {
+    if (
+      selectedTests.length === 0
+    ) {
       setErrorMessage(
-        "Select at least one laboratory test."
+        "Please select at least one laboratory test."
       );
-
       return;
     }
 
     try {
       setSubmitting(true);
 
-      const response = await fetch(
-        `${API_URL}/encounters/${encounterId}/lab-requests`,
+      console.log(
+        "[MedCard] Creating laboratory request",
         {
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            patientId,
-
-            requestedById:
-              DEVELOPMENT_USER_ID,
-
-            clinicalIndication:
-              clinicalIndication.trim() ||
-              null,
-
-            notes:
-              notes.trim() || null,
-
-            tests:
-              selectedTests.map(
-                (testName) => ({
-                  testName,
-                })
-              ),
-          }),
+          patientId,
+          encounterId,
+          selectedTests,
         }
       );
 
-      const result =
-        await response.json();
+      /*
+      |--------------------------------------------------------------------------
+      | STEP 1 — CREATE LABORATORY REQUEST
+      |--------------------------------------------------------------------------
+      */
+
+      const labResponse =
+        await fetch(
+          `${API_URL}/encounters/${encodeURIComponent(
+            encounterId
+          )}/lab-requests`,
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              patientId,
+
+              requestedById:
+                DEVELOPMENT_USER_ID,
+
+              clinicalIndication:
+                clinicalIndication.trim() ||
+                null,
+
+              notes:
+                notes.trim() ||
+                null,
+
+              tests:
+                selectedTests.map(
+                  (testId) => {
+                    const test =
+                      AVAILABLE_TESTS.find(
+                        (item) =>
+                          item.id ===
+                          testId
+                      );
+
+                    return {
+                      testName:
+                        test?.name ||
+                        testId,
+
+                      testCode:
+                        test?.code ||
+                        null,
+                    };
+                  }
+                ),
+            }),
+          }
+        );
+
+      const labResult =
+        await labResponse.json();
+
+      console.log(
+        "[MedCard] Laboratory request response",
+        labResult
+      );
 
       if (
-        !response.ok ||
-        !result.success
+        !labResponse.ok ||
+        !labResult?.success
       ) {
         throw new Error(
-          result.message ||
-            "Failed to create laboratory request."
+          labResult?.message ||
+            `Laboratory request failed (${labResponse.status}).`
         );
       }
 
-      setRequest(result.data);
+      const laboratoryRequest =
+        labResult.data as LaboratoryRequest;
+
+      setRequest(
+        laboratoryRequest
+      );
+
+      /*
+      |--------------------------------------------------------------------------
+      | STEP 2 — CREATE BILLING CHARGES
+      |--------------------------------------------------------------------------
+      |
+      | One selected laboratory test = one billing charge.
+      |
+      | The backend determines:
+      |
+      | - service price
+      | - insurance amount
+      | - patient amount
+      | - currency
+      |
+      |--------------------------------------------------------------------------
+      */
+
+      const charges: CreatedCharge[] =
+        [];
+
+      for (
+        const testId of selectedTests
+      ) {
+        const test =
+          AVAILABLE_TESTS.find(
+            (item) =>
+              item.id === testId
+          );
+
+        if (!test) {
+          continue;
+        }
+
+        const charge =
+          await createLaboratoryCharge(
+            test
+          );
+
+        console.log(
+          "[MedCard] Laboratory charge created",
+          charge
+        );
+
+        charges.push(charge);
+      }
+
+      setCreatedCharges(
+        charges
+      );
+
+      /*
+      |--------------------------------------------------------------------------
+      | STEP 3 — CALCULATE PATIENT AMOUNT
+      |--------------------------------------------------------------------------
+      */
+
+      const patientAmount =
+        charges.reduce(
+          (
+            total,
+            charge
+          ) =>
+            total +
+            Number(
+              charge.patientAmount ||
+                0
+            ),
+          0
+        );
+
+      /*
+      |--------------------------------------------------------------------------
+      | SUCCESS
+      |--------------------------------------------------------------------------
+      */
 
       setSuccessMessage(
-        "Laboratory request created successfully."
+        `Laboratory order created successfully. ${
+          charges.length
+        } charge${
+          charges.length === 1
+            ? ""
+            : "s"
+        } added. Patient payment: ${patientAmount.toLocaleString()} RWF.`
       );
+
+      /*
+      |--------------------------------------------------------------------------
+      | RESET FORM
+      |--------------------------------------------------------------------------
+      */
 
       setSelectedTests([]);
       setClinicalIndication("");
       setNotes("");
     } catch (error) {
+      console.error(
+        "[MedCard] Laboratory order failed:",
+        error
+      );
+
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Unable to create laboratory request."
+          : "Failed to create laboratory order."
       );
     } finally {
       setSubmitting(false);
@@ -264,23 +613,34 @@ function LaboratoryOrderPanel({
 
   /*
   |--------------------------------------------------------------------------
-  | EFFECTIVE DISABLED STATE
+  | TOTAL PATIENT AMOUNT
   |--------------------------------------------------------------------------
   */
 
-  const formDisabled =
-    disabled ||
-    submitting ||
-    !encounterId;
+  const totalPatientAmount =
+    createdCharges.reduce(
+      (
+        total,
+        charge
+      ) =>
+        total +
+        Number(
+          charge.patientAmount ||
+            0
+        ),
+      0
+    );
 
   /*
   |--------------------------------------------------------------------------
-  | RENDER
+  | UI
   |--------------------------------------------------------------------------
   */
 
   return (
     <section className="clinical-workspace-section">
+
+      {/* HEADER */}
 
       <div className="section-heading">
 
@@ -295,8 +655,9 @@ function LaboratoryOrderPanel({
           </h2>
 
           <p>
-            Request laboratory investigations
-            for the patient's active encounter.
+            Request laboratory
+            investigations for this
+            patient's active encounter.
           </p>
 
         </div>
@@ -313,7 +674,10 @@ function LaboratoryOrderPanel({
 
       </div>
 
-      {disabled && (
+
+      {/* WARNING */}
+
+      {!encounterId && (
         <div className="clinical-warning">
 
           <ShieldCheck size={18} />
@@ -321,13 +685,12 @@ function LaboratoryOrderPanel({
           <div>
 
             <strong>
-              Laboratory ordering unavailable
+              No active encounter
             </strong>
 
             <span>
-              This encounter has been
-              completed. New laboratory
-              requests cannot be added.
+              Laboratory orders require
+              an active patient encounter.
             </span>
 
           </div>
@@ -335,36 +698,15 @@ function LaboratoryOrderPanel({
         </div>
       )}
 
-      {!encounterId && !disabled && (
-        <div className="clinical-warning">
 
-          <ShieldCheck size={18} />
-
-          <div>
-
-            <strong>
-              Laboratory ordering unavailable
-            </strong>
-
-            <span>
-              An active clinical encounter is
-              required before laboratory tests
-              can be ordered.
-            </span>
-
-          </div>
-
-        </div>
-      )}
+      {/* FORM */}
 
       <form
         className="clinical-assessment-form"
         onSubmit={handleSubmit}
       >
 
-        {/* =================================================
-            LABORATORY TESTS
-        ================================================== */}
+        {/* TESTS */}
 
         <div className="clinical-field">
 
@@ -375,54 +717,66 @@ function LaboratoryOrderPanel({
           <div
             style={{
               display: "grid",
+
               gridTemplateColumns:
-                "repeat(auto-fit, minmax(260px, 1fr))",
+                "repeat(auto-fit, minmax(280px, 1fr))",
+
               gap: "12px",
-              marginTop: "8px",
+
+              marginTop: "10px",
             }}
           >
 
             {AVAILABLE_TESTS.map(
               (test) => {
+
                 const selected =
                   selectedTests.includes(
-                    test.name
+                    test.id
                   );
 
                 return (
                   <button
                     key={test.id}
                     type="button"
+
                     onClick={() =>
                       toggleTest(
-                        test.name
+                        test.id
                       )
                     }
+
                     disabled={
-                      formDisabled
+                      disabled ||
+                      submitting ||
+                      !encounterId
                     }
+
                     style={{
                       textAlign:
                         "left",
+
                       padding:
                         "16px",
+
                       borderRadius:
                         "12px",
+
                       border: selected
                         ? "2px solid #2563eb"
                         : "1px solid #dbe2ea",
+
                       background:
                         selected
                           ? "#eff6ff"
                           : "#ffffff",
+
                       cursor:
-                        formDisabled
+                        disabled ||
+                        submitting ||
+                        !encounterId
                           ? "not-allowed"
                           : "pointer",
-                      opacity:
-                        formDisabled
-                          ? 0.65
-                          : 1,
                     }}
                   >
 
@@ -430,8 +784,10 @@ function LaboratoryOrderPanel({
                       style={{
                         display:
                           "flex",
+
                         alignItems:
                           "center",
+
                         gap: "10px",
                       }}
                     >
@@ -442,9 +798,6 @@ function LaboratoryOrderPanel({
                           selected
                         }
                         readOnly
-                        disabled={
-                          formDisabled
-                        }
                       />
 
                       <strong>
@@ -457,17 +810,33 @@ function LaboratoryOrderPanel({
                       style={{
                         display:
                           "block",
+
                         marginTop:
                           "8px",
+
                         color:
                           "#64748b",
-                        lineHeight:
-                          1.5,
                       }}
                     >
                       {
                         test.description
                       }
+                    </small>
+
+                    <small
+                      style={{
+                        display:
+                          "block",
+
+                        marginTop:
+                          "5px",
+
+                        color:
+                          "#94a3b8",
+                      }}
+                    >
+                      Service:{" "}
+                      {test.code}
                     </small>
 
                   </button>
@@ -479,82 +848,96 @@ function LaboratoryOrderPanel({
 
           <small
             style={{
-              display: "block",
-              marginTop: "10px",
+              display:
+                "block",
+
+              marginTop:
+                "10px",
             }}
           >
             {selectedTests.length} test
-            {selectedTests.length === 1
+            {selectedTests.length ===
+            1
               ? ""
-              : "s"} selected
+              : "s"}{" "}
+            selected
           </small>
 
         </div>
 
-        {/* =================================================
-            CLINICAL INDICATION
-        ================================================== */}
+
+        {/* CLINICAL INDICATION */}
 
         <div className="clinical-field">
 
-          <label htmlFor="clinicalIndication">
+          <label>
             Clinical indication
           </label>
 
           <textarea
-            id="clinicalIndication"
             value={
               clinicalIndication
             }
+
             onChange={(event) =>
               setClinicalIndication(
                 event.target.value
               )
             }
-            placeholder="Why are these laboratory investigations being requested?"
+
+            placeholder="Why is the laboratory investigation required?"
+
             rows={4}
+
             disabled={
-              formDisabled
+              disabled ||
+              submitting ||
+              !encounterId
             }
           />
 
         </div>
 
-        {/* =================================================
-            NOTES
-        ================================================== */}
+
+        {/* NOTES */}
 
         <div className="clinical-field">
 
-          <label htmlFor="laboratoryNotes">
+          <label>
             Additional laboratory notes
           </label>
 
           <textarea
-            id="laboratoryNotes"
             value={notes}
+
             onChange={(event) =>
               setNotes(
                 event.target.value
               )
             }
-            placeholder="Relevant clinical information for the laboratory team."
+
+            placeholder="Additional information for the laboratory team."
+
             rows={4}
+
             disabled={
-              formDisabled
+              disabled ||
+              submitting ||
+              !encounterId
             }
           />
 
         </div>
 
-        {/* =================================================
-            SUCCESS
-        ================================================== */}
+
+        {/* SUCCESS */}
 
         {successMessage && (
           <div className="clinical-success">
 
-            <CheckCircle2 size={17} />
+            <CheckCircle2
+              size={18}
+            />
 
             <span>
               {successMessage}
@@ -563,14 +946,15 @@ function LaboratoryOrderPanel({
           </div>
         )}
 
-        {/* =================================================
-            ERROR
-        ================================================== */}
+
+        {/* ERROR */}
 
         {errorMessage && (
           <div className="clinical-error">
 
-            <ShieldCheck size={17} />
+            <ShieldCheck
+              size={18}
+            />
 
             <span>
               {errorMessage}
@@ -579,20 +963,15 @@ function LaboratoryOrderPanel({
           </div>
         )}
 
-        {/* =================================================
-            CREATED REQUEST
-        ================================================== */}
+
+        {/* REQUEST CREATED */}
 
         {request && (
-          <div
-            className="clinical-success"
-            style={{
-              alignItems:
-                "flex-start",
-            }}
-          >
+          <div className="clinical-success">
 
-            <ClipboardList size={18} />
+            <ClipboardList
+              size={18}
+            />
 
             <div>
 
@@ -602,11 +981,7 @@ function LaboratoryOrderPanel({
 
               <div>
                 Request ID:{" "}
-                {request.id.slice(
-                  0,
-                  8
-                )}
-                …
+                {request.id}
               </div>
 
               <div>
@@ -621,9 +996,70 @@ function LaboratoryOrderPanel({
           </div>
         )}
 
-        {/* =================================================
-            ACTIONS
-        ================================================== */}
+
+        {/* CHARGE CREATED */}
+
+        {createdCharges.length >
+          0 && (
+          <div className="clinical-success">
+
+            <CreditCard
+              size={18}
+            />
+
+            <div>
+
+              <strong>
+                Billing charge created
+              </strong>
+
+              <div>
+                Patient amount:{" "}
+                <strong>
+                  {totalPatientAmount.toLocaleString()}{" "}
+                  RWF
+                </strong>
+              </div>
+
+              <small>
+                The charge is now
+                available in the
+                Payment Workspace.
+              </small>
+
+              <div
+                style={{
+                  marginTop:
+                    "8px",
+                }}
+              >
+                {createdCharges.map(
+                  (charge) => (
+                    <div
+                      key={
+                        charge.id
+                      }
+                    >
+                      {charge.description ||
+                        "Laboratory service"}{" "}
+                      —{" "}
+                      {Number(
+                        charge.patientAmount ||
+                          0
+                      ).toLocaleString()}{" "}
+                      RWF
+                    </div>
+                  )
+                )}
+              </div>
+
+            </div>
+
+          </div>
+        )}
+
+
+        {/* ACTION */}
 
         <div className="clinical-form-actions">
 
@@ -632,23 +1068,26 @@ function LaboratoryOrderPanel({
             <Beaker size={16} />
 
             <span>
-              {disabled
-                ? "Encounter completed"
-                : encounterId
-                ? `Laboratory order for encounter ${encounterId.slice(
+              {encounterId
+                ? `Active encounter: ${encounterId.slice(
                     0,
                     8
                   )}…`
-                : "No encounter"}
+                : "No active encounter"}
             </span>
 
           </div>
 
+
           <button
             type="submit"
+
             disabled={
-              formDisabled ||
-              selectedTests.length === 0
+              disabled ||
+              submitting ||
+              !encounterId ||
+              selectedTests.length ===
+                0
             }
           >
 
@@ -659,15 +1098,8 @@ function LaboratoryOrderPanel({
                   className="spin"
                 />
 
-                Sending to laboratory...
-              </>
-            ) : disabled ? (
-              <>
-                <ShieldCheck
-                  size={17}
-                />
-
-                Encounter Completed
+                Creating laboratory
+                order...
               </>
             ) : (
               <>

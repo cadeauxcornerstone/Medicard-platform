@@ -715,29 +715,30 @@ export const getPaymentsByCharge = async (
   }
 
   const payments =
-    await prisma.payment.findMany({
-      where: {
-        chargeId,
-      },
+  await prisma.payment.findMany({
+    where: {
+      chargeId,
+    },
 
-      include: {
-        charge: {
-          include: {
-            service: true,
-          },
-        },
-
-        auditLogs: {
-          orderBy: {
-            createdAt: "asc",
-          },
+    include: {
+      charge: {
+        include: {
+          service: true,
         },
       },
 
-      orderBy: {
-        createdAt: "desc",
+      paymentAuditLogs: {
+        orderBy: {
+          createdAt: "asc",
+        },
       },
-    });
+    },
+
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+ 
 
   return payments;
 };

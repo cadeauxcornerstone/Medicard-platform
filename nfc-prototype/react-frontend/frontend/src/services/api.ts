@@ -865,10 +865,10 @@ export const getCharge = async (
   return response.data.data;
 };
 
-
 export const createCharge = async (
   encounterId: string,
   payload: {
+    patientId: string;
     serviceId: string;
     quantity?: number;
     description?: string;
@@ -878,10 +878,9 @@ export const createCharge = async (
     `/encounters/${encounterId}/charges`,
     payload
   );
+
   return response.data.data;
 };
-
-
 //wallet
 
 export const getWallet = async (
@@ -893,6 +892,41 @@ export const getWallet = async (
 
   return response.data.data;
 };
+
+
+export interface WalletTopUpResult {
+  wallet: Wallet;
+  transaction: {
+    id: string;
+    walletId: string;
+    type: string;
+    amount: number;
+    balanceBefore: number;
+    balanceAfter: number;
+    reference?: string | null;
+    description?: string | null;
+    createdAt?: string;
+  };
+}
+
+
+export const topUpWallet = async (
+  patientId: string,
+  payload: {
+    amount: number;
+    reference?: string;
+    description?: string;
+  }
+): Promise<WalletTopUpResult> => {
+  const response =
+    await api.post<ApiResponse<WalletTopUpResult>>(
+      `/patients/${patientId}/wallet/top-up`,
+      payload
+    );
+
+  return response.data.data;
+};
+
 
 
 // Payments

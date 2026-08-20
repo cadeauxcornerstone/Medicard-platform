@@ -20,6 +20,7 @@ import PharmacyWorkspacePage from "./pages/PharmacyWorkspacePage";
 import PaymentWorkspacePage from "./pages/PaymentWorkspacePage";
 import PatientRegistrationPage from "./pages/PatientRegistrationPage";
 import SettingsPage from "./pages/SettingsPage";
+import TopUpPage from "./pages/TopUpPage";
 
 function App() {
   return (
@@ -32,44 +33,54 @@ function App() {
 
         {/* =====================================================
             PATIENT REGISTRATION
-            New patient + NFC card linking
         ====================================================== */}
-
         <Route
           path="/register-patient"
-          element={
-            <PatientRegistrationPage />
-          }
+          element={<PatientRegistrationPage />}
         />
-
 
         {/* =====================================================
             FACILITY ACCESS
         ====================================================== */}
-        <Route path="/facility-login" element={<FacilityLoginPage />} />
+        <Route
+          path="/facility-login"
+          element={<FacilityLoginPage />}
+        />
 
         {/* =====================================================
             STAFF / ROLE LOGIN
         ====================================================== */}
-        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/login"
+          element={<LoginPage />}
+        />
 
         {/* =====================================================
             MAIN DASHBOARD
         ====================================================== */}
-        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route
+          path="/dashboard"
+          element={<DashboardPage />}
+        />
 
         {/* =====================================================
             NFC PATIENT IDENTIFICATION
         ====================================================== */}
-        <Route path="/nfc" element={<NFCScannerPage />} />
+        <Route
+          path="/nfc"
+          element={<NFCScannerPage />}
+        />
 
         {/* =====================================================
             PATIENTS REGISTRY & DIRECTORY
         ====================================================== */}
-        <Route path="/patients" element={<PatientsPage />} />
+        <Route
+          path="/patients"
+          element={<PatientsPage />}
+        />
 
         {/* =====================================================
-            PATIENT WORKSPACE (SINGLE PATIENT)
+            PATIENT WORKSPACE
         ====================================================== */}
         <Route
           path="/patients/:patientId"
@@ -79,12 +90,18 @@ function App() {
         {/* =====================================================
             APPOINTMENTS & QUEUE
         ====================================================== */}
-        <Route path="/appointments" element={<AppointmentsPage />} />
+        <Route
+          path="/appointments"
+          element={<AppointmentsPage />}
+        />
 
         {/* =====================================================
             MEDICAL RECORDS EXPLORER
         ====================================================== */}
-        <Route path="/medical-records" element={<MedicalRecordsPage />} />
+        <Route
+          path="/medical-records"
+          element={<MedicalRecordsPage />}
+        />
 
         {/* =====================================================
             LABORATORY WORKSPACE
@@ -97,22 +114,42 @@ function App() {
         {/* =====================================================
             PHARMACY WORKSPACE
         ====================================================== */}
-        <Route path="/pharmacy" element={<PharmacyWorkspacePage />} />
+        <Route
+          path="/pharmacy"
+          element={<PharmacyWorkspacePage />}
+        />
 
         {/* =====================================================
             PAYMENT WORKSPACE
         ====================================================== */}
-        <Route path="/payment" element={<PaymentWorkspacePage />} />
+        <Route
+          path="/payment"
+          element={<PaymentWorkspacePage />}
+        />
+
+        {/* =====================================================
+            RECEPTION WALLET TOP-UP
+        ====================================================== */}
+        <Route
+          path="/top-up"
+          element={<TopUpPage />}
+        />
 
         {/* =====================================================
             SETTINGS & DIAGNOSTICS
         ====================================================== */}
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route
+          path="/settings"
+          element={<SettingsPage />}
+        />
 
         {/* =====================================================
             FALLBACK
         ====================================================== */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route
+          path="*"
+          element={<Navigate to="/" replace />}
+        />
       </Routes>
     </BrowserRouter>
   );

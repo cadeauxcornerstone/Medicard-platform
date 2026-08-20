@@ -87,9 +87,19 @@ app.use(
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 100,
+
+  // Development/prototype environment:
+  // allow the frontend to make repeated API requests
+  // while navigating between workspaces.
+  limit: 1000,
+
   standardHeaders: "draft-8",
   legacyHeaders: false,
+
+  message: {
+    success: false,
+    message: "Too many requests. Please try again shortly.",
+  },
 });
 
 app.use("/api", limiter);
