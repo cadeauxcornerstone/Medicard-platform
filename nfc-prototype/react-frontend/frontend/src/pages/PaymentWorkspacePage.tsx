@@ -1,648 +1,3896 @@
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
 import {
+  ArrowLeft,
+  ArrowUpRight,
   Banknote,
   CheckCircle2,
+  ChevronRight,
   CreditCard,
+  History,
   LoaderCircle,
-  Pill,
-  Printer,
+  LockKeyhole,
   RefreshCw,
-  RotateCcw,
   ShieldCheck,
   Smartphone,
-  Stethoscope,
-  TestTubes,
   Wallet,
   Wifi,
-  X,
   XCircle,
 } from "lucide-react";
-import { io } from "socket.io-client";
-import AppLayout from "../components/layout/AppLayout";
+
+import "./PatientWorkspacePage.css";
+
 import {
-  getPatient,
-  getEncounter,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
+
+import {
+  DEMO_FACILITY_ID,
+  getCharges,
+  getPayments,
   getWallet,
-  type Patient,
-  type Encounter,
-  type Wallet as WalletType,
 } from "../services/api";
 
-const SOCKET_URL = "http://localhost:5000";
+import { socket } from "../services/socket";
+
+
+
+
+/*
+|--------------------------------------------------------------------------
+| TYPES
+|--------------------------------------------------------------------------
+*/
+
+interface Patient {
+  id: string;
+  patientNumber?: string;
+  firstName?: string;
+  lastName?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  accessLevel?: string;
+}
+
+interface Encounter {
+  id: string;
+  type?: string;
+  status?: string;
+  startedAt?: string;
+}
+
+interface Service {
+  id: string;
+  code?: string;
+  name?: string;
+  description?: string;
+  category?: string;
+}
+
+interface Charge {
+  id: string;
+
+  patientId: string;
+
+  encounterId: string;
+
+  serviceId?: string;
+
+  servicePriceId?: string | null;
+
+  quantity?: number;
+
+  unitPrice: number | string;
+
+  subtotal?: number | string;
+
+  insuranceAmount?: number | string;
+
+  patientAmount: number | string;
+
+  currency?: string;
+
+  status?: string;
+
+  description?: string | null;
+
+  createdAt?: string;
+
+  updatedAt?: string;
+
+  service?: Service;
+
+  patient?: Patient;
+
+  encounter?: Encounter;
+}
+
+interface Payment {
+  id: string;
+
+  chargeId?: string;
+
+  patientId?: string;
+
+  amount: number | string;
+
+  currency?: string;
+
+  method?: string;
+
+  reference?: string | null;
+
+  notes?: string | null;
+
+  status?: string;
+
+  createdAt?: string;
+
+  updatedAt?: string;
+}
+
+interface Wallet {
+  id: string;
+
+  patientId: string;
+
+  balance: number | string;
+
+  currency?: string;
+
+  status?: string;
+}
+
+interface WalletTransaction {
+  id: string;
+
+  walletId?: string;
+
+  type: string;
+
+  amount: number | string;
+
+  balanceBefore: number | string;
+
+  balanceAfter: number | string;
+
+  reference?: string | null;
+
+  description?: string | null;
+
+  createdAt?: string;
+}
+
+interface ChargeBalance {
+  chargeId: string;
+
+  chargeAmount?: number | string;
+
+  totalPaid?: number | string;
+
+  remainingBalance?: number | string;
+
+  status?: string;
+}
 
 interface PaymentIntent {
   id: string;
-  chargeId: string;
-  patientId: string;
-  amount: number;
-  currency: string;
-  status: string;
-  reference: string;
-  expiresAt: string;
-  createdAt: string;
+
+  facilityId?: string;
+
+  patientId?: string;
+
+  encounterId?: string;
+
+  chargeId?: string;
+
+  amount: number | string;
+
+  currency?: string;
+
+  method?: string;
+
+  status?: string;
+
+  expiresAt?: string;
+
+  createdAt?: string;
+
+  updatedAt?: string;
 }
 
-interface ServiceItem {
-  id: string;
-  name: string;
-  category: "CONSULTATION" | "LABORATORY" | "PHARMACY";
-  grossAmount: number;
-  insuranceAmount: number;
-  patientAmount: number;
+interface PaymentResponse {
+  payment?: Payment;
+
+  wallet?: any;
+
+  calculation?: any;
+
+  alreadyProcessed?: boolean;
+
+  paymentIntent?: PaymentIntent;
+
+  charge?: Charge;
+
+  result?: any;
 }
 
-const SAMPLE_SERVICE_ITEMS: ServiceItem[] = [
-  {
-    id: "srv-1",
-    name: "Specialist Consultation (Orthopedics)",
-    category: "CONSULTATION",
-    grossAmount: 15000,
-    insuranceAmount: 12750,
-    patientAmount: 2250,
-  },
-  {
-    id: "srv-2",
-    name: "Laboratory Panel: CBC & CRP Quant",
-    category: "LABORATORY",
-    grossAmount: 38000,
-    insuranceAmount: 32300,
-    patientAmount: 5700,
-  },
-  {
-    id: "srv-3",
-    name: "Pharmacy: Amoxicillin 500mg & Paracetamol",
-    category: "PHARMACY",
-    grossAmount: 36000,
-    insuranceAmount: 30600,
-    patientAmount: 5400,
-  },
-];
+interface ApiError {
+  message?: string;
+
+  statusCode?: number;
+
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| HELPERS
+|--------------------------------------------------------------------------
+*/
+
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "http://localhost:5000/api/v1";
+
+
+const toNumber = (
+  value: unknown
+): number => {
+  const number =
+    Number(value);
+
+  return Number.isFinite(
+    number
+  )
+    ? number
+    : 0;
+};
+
+
+const formatRwf = (
+  value: unknown
+): string => {
+  return `${toNumber(
+    value
+  ).toLocaleString(
+    "en-RW"
+  )} RWF`;
+};
+
+
+const formatDateTime = (
+  value?: string
+): string => {
+  if (!value) {
+    return "—";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "—";
+  }
+
+  return date.toLocaleString(
+    "en-RW",
+    {
+      dateStyle:
+        "medium",
+      timeStyle:
+        "short",
+    }
+  );
+};
+
+
+const getInitials = (
+  firstName?: string,
+  lastName?: string
+): string => {
+  const first =
+    firstName?.trim()?.[0] ||
+    "";
+
+  const last =
+    lastName?.trim()?.[0] ||
+    "";
+
+  const result =
+    `${first}${last}`.toUpperCase();
+
+  return result || "P";
+};
+
+
+const getChargeLabel = (
+  charge: Charge
+): string => {
+  if (
+    charge.service?.name
+  ) {
+    return charge.service.name;
+  }
+
+  if (
+    charge.description
+  ) {
+    return charge.description;
+  }
+
+  return "Healthcare service";
+};
+
+
+const getStatusLabel = (
+  status?: string
+): string => {
+  if (!status) {
+    return "Pending";
+  }
+
+  return status
+    .replace(
+      /_/g,
+      " "
+    )
+    .toLowerCase()
+    .replace(
+      /\b\w/g,
+      (letter) =>
+        letter.toUpperCase()
+    );
+};
+
+
+/*
+|--------------------------------------------------------------------------
+| COMPONENT
+|--------------------------------------------------------------------------
+*/
 
 export default function PaymentWorkspacePage() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const navigate =
+    useNavigate();
 
-  const patientId = searchParams.get("patientId") || "ac844b2b-cc1b-45a4-9404-e059fdd6df0b";
-  const encounterId = searchParams.get("encounterId") || "enc-sample-001";
+  const location =
+    useLocation();
 
-  const [patient, setPatient] = useState<Patient | null>(null);
-  const [_encounter, setEncounter] = useState<Encounter | null>(null);
-  const [wallet, setWallet] = useState<WalletType | null>(null);
-
-  const [selectedMethod, setSelectedMethod] = useState<"MEDCARD" | "MOMO" | "CASH">("MEDCARD");
-  const [paymentIntent, setPaymentIntent] = useState<PaymentIntent | null>(null);
-  const [waitingForSecondTap, setWaitingForSecondTap] = useState(false);
-  const [processingPayment, setProcessingPayment] = useState(false);
-  const [paymentComplete, setPaymentComplete] = useState(false);
-  const [completedTransactionRef, setCompletedTransactionRef] = useState("");
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-
-  // Calculation totals
-  const totalGross = SAMPLE_SERVICE_ITEMS.reduce((sum, item) => sum + item.grossAmount, 0); // 89,000
-  const totalInsurance = SAMPLE_SERVICE_ITEMS.reduce((sum, item) => sum + item.insuranceAmount, 0); // 75,650
-  const totalPatientCoPay = SAMPLE_SERVICE_ITEMS.reduce((sum, item) => sum + item.patientAmount, 0); // 13,350
-  const walletBalance = wallet?.balance ?? 37200;
+  const params =
+    useParams();
 
   /*
   |--------------------------------------------------------------------------
-  | LOAD PATIENT & WALLET
+  | PATIENT / ENCOUNTER
   |--------------------------------------------------------------------------
   */
-  const loadPaymentData = useCallback(async () => {
-    setLoading(true);
-    setError("");
 
-    try {
-      if (patientId) {
-        try {
-          const patientData = await getPatient(patientId);
-          setPatient(patientData);
-        } catch {
-          // Fallback patient
-          setPatient({
-            id: patientId,
-            patientNumber: "MED-2026-000001",
-            firstName: "Wilson",
-            lastName: "Test",
-            dateOfBirth: "1988-06-15",
-            gender: "Male",
-            phone: "+250 788 123 456",
-            nationalId: "1198880012345678",
-          });
-        }
+  const queryParams =
+    useMemo(
+      () =>
+        new URLSearchParams(
+          location.search
+        ),
+      [location.search]
+    );
 
-        try {
-          const walletData = await getWallet(patientId);
-          setWallet(walletData);
-        } catch {
-          setWallet({
-            id: `w-${patientId}`,
-            patientId,
-            balance: 37200,
-            currency: "RWF",
-            status: "ACTIVE",
-          });
-        }
-      }
+  const patientId =
+    params.patientId ||
+    queryParams.get(
+      "patientId"
+    ) ||
+    "";
 
-      if (encounterId) {
-        try {
-          const encData = await getEncounter(encounterId);
-          setEncounter(encData);
-        } catch {
-          setEncounter({
-            id: encounterId,
-            patientId,
-            facilityId: "kfh-001",
-            type: "OUTPATIENT",
-            status: "OPEN",
-            startedAt: new Date().toISOString(),
-            endedAt: null,
-          });
-        }
-      }
-    } catch {
-      // Local fallbacks already initialized
-    } finally {
-      setLoading(false);
-    }
-  }, [patientId, encounterId]);
+  const encounterId =
+    queryParams.get(
+      "encounterId"
+    ) ||
+    "";
 
-  useEffect(() => {
-    void loadPaymentData();
-  }, [loadPaymentData]);
 
   /*
   |--------------------------------------------------------------------------
-  | SOCKET LISTENER FOR SECOND NFC TAP
+  | PATIENT STATE
   |--------------------------------------------------------------------------
   */
-  useEffect(() => {
-    if (!waitingForSecondTap) return;
 
-    const socket = io(SOCKET_URL, {
-      transports: ["websocket", "polling"],
-    });
+  const [patient, setPatient] =
+    useState<Patient | null>(
+      null
+    );
 
-    const handlePatientTapped = (event: any) => {
-      console.log("PaymentWorkspace: NFC Card tapped during payment intent:", event);
-      void executePaymentCompletion();
-    };
+  const [encounter, setEncounter] =
+    useState<Encounter | null>(
+      null
+    );
 
-    socket.on("patient:identified", handlePatientTapped);
-    socket.on("card:tapped", handlePatientTapped);
-
-    return () => {
-      socket.off("patient:identified", handlePatientTapped);
-      socket.off("card:tapped", handlePatientTapped);
-      socket.disconnect();
-    };
-  }, [waitingForSecondTap]);
 
   /*
   |--------------------------------------------------------------------------
-  | INITIATE PAYMENT
+  | CHARGES
   |--------------------------------------------------------------------------
   */
-  const handleInitiatePayment = async () => {
-    setError("");
-    setSuccessMessage("");
 
-    if (selectedMethod === "MEDCARD") {
-      setWaitingForSecondTap(true);
-      setPaymentIntent({
-        id: `intent-${Date.now()}`,
-        chargeId: `chg-${Date.now()}`,
+  const [charges, setCharges] =
+    useState<Charge[]>(
+      []
+    );
+
+  const [balances, setBalances] =
+    useState<
+      Record<
+        string,
+        ChargeBalance
+      >
+    >({});
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | PAYMENTS
+  |--------------------------------------------------------------------------
+  */
+
+  const [payments, setPayments] =
+    useState<Payment[]>(
+      []
+    );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | WALLET
+  |--------------------------------------------------------------------------
+  */
+
+  const [wallet, setWallet] =
+    useState<Wallet | null>(
+      null
+    );
+
+  const [transactions, setTransactions] =
+    useState<
+      WalletTransaction[]
+    >([]);
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | UI
+  |--------------------------------------------------------------------------
+  */
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [refreshing, setRefreshing] =
+    useState(false);
+
+  const [activeTab, setActiveTab] =
+    useState<
+      "charges" |
+      "transactions"
+    >("charges");
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | SELECTED CHARGE
+  |--------------------------------------------------------------------------
+  */
+
+  const [
+    selectedChargeId,
+    setSelectedChargeId,
+  ] = useState<
+    string | null
+  >(null);
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | PAYMENT FORM
+  |--------------------------------------------------------------------------
+  */
+
+  const [
+    paymentMethod,
+    setPaymentMethod,
+  ] = useState<
+    "MEDCARD" |
+    "CASH" |
+    "MOBILE_MONEY"
+  >("MEDCARD");
+
+  const [
+    paymentAmount,
+    setPaymentAmount,
+  ] = useState("");
+
+  const [
+    paymentReference,
+    setPaymentReference,
+  ] = useState("");
+
+  const [
+    paymentNotes,
+    setPaymentNotes,
+  ] = useState("");
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | PAYMENT PROCESSING
+  |--------------------------------------------------------------------------
+  */
+
+  const [
+    processingPayment,
+    setProcessingPayment,
+  ] = useState(false);
+
+  const [
+    waitingForSecondTap,
+    setWaitingForSecondTap,
+  ] = useState(false);
+
+  const [
+    secondTapCardUid,
+    setSecondTapCardUid,
+  ] = useState<
+    string | null
+  >(null);
+
+  const [
+    paymentIntent,
+    setPaymentIntent,
+  ] = useState<
+    PaymentIntent | null
+  >(null);
+
+  const [
+    lastPayment,
+    setLastPayment,
+  ] = useState<
+    PaymentResponse | null
+  >(null);
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | MESSAGES
+  |--------------------------------------------------------------------------
+  */
+
+  const [error, setError] =
+    useState("");
+
+  const [
+    successMessage,
+    setSuccessMessage,
+  ] = useState("");
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | GENERIC API REQUEST
+  |--------------------------------------------------------------------------
+  */
+
+  const request =
+    useCallback(
+      async <T,>(
+        path: string,
+        options: RequestInit = {}
+      ): Promise<T> => {
+
+        const response =
+          await fetch(
+            `${API_URL}${path}`,
+            {
+              ...options,
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+
+                ...(options.headers ||
+                  {}),
+              },
+            }
+          );
+
+        let data: any =
+          null;
+
+        try {
+          data =
+            await response.json();
+        } catch {
+          data = null;
+        }
+
+        if (!response.ok) {
+
+          const message =
+            data?.message ||
+            data?.error ||
+            `Request failed with status ${response.status}`;
+
+          const requestError =
+            new Error(
+              message
+            ) as Error &
+              ApiError;
+
+          requestError.statusCode =
+            response.status;
+
+          requestError.response = {
+            data,
+          };
+
+          throw requestError;
+        }
+
+        return (
+          data?.data ??
+          data
+        ) as T;
+      },
+      []
+    );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | LOAD PATIENT
+  |--------------------------------------------------------------------------
+  */
+
+  const loadPatient =
+    useCallback(
+      async () => {
+
+        if (!patientId) {
+          return;
+        }
+
+        try {
+
+          const result =
+            await request<any>(
+              `/patients/${encodeURIComponent(
+                patientId
+              )}`
+            );
+
+          const patientData =
+            result?.patient ||
+            result?.data ||
+            result;
+
+          if (
+            patientData
+          ) {
+            setPatient(
+              patientData
+            );
+          }
+
+        } catch {
+          /*
+           * Patient information is supplementary.
+           * Charges/payment loading should continue.
+           */
+        }
+      },
+      [
         patientId,
-        amount: totalPatientCoPay,
-        currency: "RWF",
-        status: "PENDING_CONFIRMATION",
-        reference: `TX-PAY-${Math.floor(1000 + Math.random() * 9000)}`,
-        expiresAt: new Date(Date.now() + 5 * 60000).toISOString(),
-        createdAt: new Date().toISOString(),
-      });
-    } else {
-      // Mobile money / cash immediate authorization
-      await executePaymentCompletion();
-    }
-  };
+        request,
+      ]
+    );
+
 
   /*
   |--------------------------------------------------------------------------
-  | EXECUTE PAYMENT COMPLETION
+  | LOAD ENCOUNTER
   |--------------------------------------------------------------------------
   */
-  const executePaymentCompletion = async () => {
-    setProcessingPayment(true);
-    setError("");
 
-    try {
-      // Simulate backend settlement delay
-      await new Promise((res) => setTimeout(res, 900));
+  const loadEncounter =
+    useCallback(
+      async () => {
 
-      const txRef = `TX-KFH-${Math.floor(100000 + Math.random() * 900000)}`;
-      setCompletedTransactionRef(txRef);
-      setPaymentComplete(true);
-      setWaitingForSecondTap(false);
+        if (!encounterId) {
+          return;
+        }
 
-      if (wallet) {
-        setWallet({
-          ...wallet,
-          balance: Math.max(0, wallet.balance - totalPatientCoPay),
-        });
+        try {
+
+          const result =
+            await request<any>(
+              `/encounters/${encodeURIComponent(
+                encounterId
+              )}`
+            );
+
+          const encounterData =
+            result?.encounter ||
+            result?.data ||
+            result;
+
+          if (
+            encounterData
+          ) {
+            setEncounter(
+              encounterData
+            );
+          }
+
+        } catch {
+          /*
+           * Encounter information is supplementary.
+           */
+        }
+      },
+      [
+        encounterId,
+        request,
+      ]
+    );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | LOAD CHARGES
+  |--------------------------------------------------------------------------
+  */
+
+  const loadCharges =
+    useCallback(
+      async () => {
+
+        if (!encounterId) {
+          setCharges(
+            []
+          );
+
+          return;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | IMPORTANT
+        |
+        | These are REAL backend charges.
+        | No mock charges are created here.
+        |--------------------------------------------------------------------------
+        */
+
+        const result =
+          await getCharges(
+            encounterId
+          );
+
+        const chargeList =
+          Array.isArray(
+            result
+          )
+            ? result
+            : [];
+
+        setCharges(
+          chargeList
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Automatically select the first
+        | outstanding charge if nothing
+        | is currently selected.
+        |--------------------------------------------------------------------------
+        */
+
+        setSelectedChargeId(
+          (current) => {
+
+            if (
+              current &&
+              chargeList.some(
+                (
+                  charge
+                ) =>
+                  charge.id ===
+                  current
+              )
+            ) {
+              return current;
+            }
+
+            const outstanding =
+              chargeList.find(
+                (
+                  charge
+                ) =>
+                  charge.status !==
+                  "PAID"
+              );
+
+            return (
+              outstanding?.id ||
+              null
+            );
+          }
+        );
+
+      },
+      [
+        encounterId,
+      ]
+    );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | LOAD CHARGE BALANCES
+  |--------------------------------------------------------------------------
+  */
+
+  const loadChargeBalances =
+    useCallback(
+      async (
+        chargeList: Charge[]
+      ) => {
+
+        const balanceMap:
+          Record<
+            string,
+            ChargeBalance
+          > = {};
+
+        await Promise.all(
+          chargeList.map(
+            async (
+              charge
+            ) => {
+
+              try {
+
+                const result =
+                  await request<any>(
+                    `/charges/${encodeURIComponent(
+                      charge.id
+                    )}/balance`
+                  );
+
+                const balance =
+                  result?.balance ||
+                  result?.data ||
+                  result;
+
+                if (
+                  balance
+                ) {
+
+                  balanceMap[
+                    charge.id
+                  ] = {
+                    chargeId:
+                      charge.id,
+
+                    chargeAmount:
+                      balance.chargeAmount ??
+                      charge.patientAmount,
+
+                    totalPaid:
+                      balance.totalPaid ??
+                      0,
+
+                    remainingBalance:
+                      balance.remainingBalance ??
+                      balance.remaining ??
+                      charge.patientAmount,
+
+                    status:
+                      balance.status ??
+                      charge.status,
+                  };
+
+                }
+
+              } catch {
+                /*
+                 * If balance endpoint isn't available,
+                 * derive the balance from the charge.
+                 */
+              }
+            }
+          )
+        );
+
+        setBalances(
+          balanceMap
+        );
+
+      },
+      [
+        request,
+      ]
+    );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | LOAD PAYMENTS
+  |--------------------------------------------------------------------------
+  */
+
+  const loadPayments =
+    useCallback(
+      async (
+        chargeList: Charge[]
+      ) => {
+
+        const allPayments:
+          Payment[] = [];
+
+        await Promise.all(
+          chargeList.map(
+            async (
+              charge
+            ) => {
+
+              try {
+
+                const result =
+                  await getPayments(
+                    charge.id
+                  );
+
+                if (
+                  Array.isArray(
+                    result
+                  )
+                ) {
+                  allPayments.push(
+                    ...result
+                  );
+                }
+
+              } catch {
+                /*
+                 * Continue loading other charges.
+                 */
+              }
+            }
+          )
+        );
+
+        setPayments(
+          allPayments
+        );
+
+      },
+      []
+    );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | LOAD WALLET
+  |--------------------------------------------------------------------------
+  */
+
+  const loadPatientWallet =
+    useCallback(
+      async () => {
+
+        if (!patientId) {
+          setWallet(
+            null
+          );
+
+          return;
+        }
+
+        try {
+
+          const result =
+            await getWallet(
+              patientId
+            );
+
+          setWallet(
+            result
+          );
+
+        } catch {
+
+          setWallet(
+            null
+          );
+
+        }
+
+      },
+      [
+        patientId,
+      ]
+    );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | LOAD WALLET TRANSACTIONS
+  |--------------------------------------------------------------------------
+  */
+
+  const loadWalletTransactions =
+    useCallback(
+      async () => {
+
+        if (!patientId) {
+          setTransactions(
+            []
+          );
+
+          return;
+        }
+
+        try {
+
+          const result =
+            await request<any>(
+              `/patients/${encodeURIComponent(
+                patientId
+              )}/wallet/transactions`
+            );
+
+          const transactionList =
+            result?.transactions ||
+            result?.data ||
+            result;
+
+          setTransactions(
+            Array.isArray(
+              transactionList
+            )
+              ? transactionList
+              : []
+          );
+
+        } catch {
+
+          setTransactions(
+            []
+          );
+
+        }
+
+      },
+      [
+        patientId,
+        request,
+      ]
+    );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | LOAD ALL DATA
+  |--------------------------------------------------------------------------
+  */
+
+  const loadData =
+    useCallback(
+      async (
+        silent = false
+      ) => {
+
+        if (!silent) {
+          setLoading(
+            true
+          );
+        } else {
+          setRefreshing(
+            true
+          );
+        }
+
+        setError("");
+
+        try {
+
+          await Promise.all([
+            loadPatient(),
+            loadEncounter(),
+          ]);
+
+          await loadCharges();
+
+          /*
+          |--------------------------------------------------------------------------
+          | Read charges again from backend so
+          | balance/payment queries use the
+          | latest real list.
+          |--------------------------------------------------------------------------
+          */
+
+          let latestCharges:
+            Charge[] = [];
+
+          if (
+            encounterId
+          ) {
+
+            try {
+
+              const latest =
+                await getCharges(
+                  encounterId
+                );
+
+              latestCharges =
+                Array.isArray(
+                  latest
+                )
+                  ? latest
+                  : [];
+
+              setCharges(
+                latestCharges
+              );
+
+            } catch {
+
+              latestCharges =
+                charges;
+            }
+
+          }
+
+          await Promise.all([
+            loadChargeBalances(
+              latestCharges
+            ),
+
+            loadPayments(
+              latestCharges
+            ),
+
+            loadPatientWallet(),
+
+            loadWalletTransactions(),
+          ]);
+
+        } catch (
+          loadError: any
+        ) {
+
+          setError(
+            loadError?.message ||
+              "Unable to load payment information."
+          );
+
+        } finally {
+
+          setLoading(
+            false
+          );
+
+          setRefreshing(
+            false
+          );
+        }
+
+      },
+      [
+        encounterId,
+        charges,
+        loadPatient,
+        loadEncounter,
+        loadCharges,
+        loadChargeBalances,
+        loadPayments,
+        loadPatientWallet,
+        loadWalletTransactions,
+      ]
+    );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | INITIAL LOAD
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(
+    () => {
+
+      loadData();
+
+    },
+    [
+      patientId,
+      encounterId,
+    ]
+  );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | SELECT FIRST OUTSTANDING CHARGE
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(
+    () => {
+
+      if (
+        !selectedChargeId &&
+        charges.length > 0
+      ) {
+
+        const outstanding =
+          charges.find(
+            (
+              charge
+            ) =>
+              charge.status !==
+              "PAID"
+          );
+
+        if (
+          outstanding
+        ) {
+
+          setSelectedChargeId(
+            outstanding.id
+          );
+
+        }
+
       }
 
-      setSuccessMessage(
-        `Payment of ${totalPatientCoPay.toLocaleString()} RWF authorized and settled successfully.`
-      );
-    } catch {
-      setError("Payment processing failed. Please try again.");
-    } finally {
-      setProcessingPayment(false);
-    }
-  };
+    },
+    [
+      charges,
+      selectedChargeId,
+    ]
+  );
+
 
   /*
   |--------------------------------------------------------------------------
-  | CANCEL INTENT
+  | CALCULATE SELECTED CHARGE
   |--------------------------------------------------------------------------
   */
-  const handleCancelIntent = () => {
-    setWaitingForSecondTap(false);
-    setPaymentIntent(null);
-    setProcessingPayment(false);
-  };
 
-  const formatRwf = (value: number) => {
-    return `${value.toLocaleString("en-RW")} RWF`;
-  };
+  const selectedCharge =
+    useMemo(
+      () =>
+        charges.find(
+          (
+            charge
+          ) =>
+            charge.id ===
+            selectedChargeId
+        ) ||
+        null,
+      [
+        charges,
+        selectedChargeId,
+      ]
+    );
 
-  const getInitials = (first?: string, last?: string) => {
-    return `${first?.[0] || ""}${last?.[0] || ""}`.toUpperCase() || "PT";
-  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | SELECTED CHARGE BALANCE
+  |--------------------------------------------------------------------------
+  */
+
+  const selectedBalance =
+    selectedCharge
+      ? balances[
+          selectedCharge.id
+        ]
+      : null;
+
+
+  const outstandingAmount =
+    selectedBalance
+      ? toNumber(
+          selectedBalance.remainingBalance
+        )
+      : selectedCharge
+        ? Math.max(
+            0,
+            toNumber(
+              selectedCharge.patientAmount
+            )
+          )
+        : 0;
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | PAYMENT AMOUNT
+  |--------------------------------------------------------------------------
+  */
+
+  const numericPaymentAmount =
+    toNumber(
+      paymentAmount
+    );
+
+
+  const paymentExceedsCharge =
+    numericPaymentAmount >
+    outstandingAmount;
+
+
+  const walletBalance =
+    toNumber(
+      wallet?.balance
+    );
+
+
+  const paymentExceedsWallet =
+    paymentMethod ===
+      "MEDCARD" &&
+    numericPaymentAmount >
+      walletBalance;
+
+
+  const canPay =
+    !!selectedCharge &&
+    outstandingAmount > 0 &&
+    numericPaymentAmount > 0 &&
+    !paymentExceedsCharge &&
+    !paymentExceedsWallet &&
+    !processingPayment &&
+    !waitingForSecondTap;
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | AUTOMATIC PAYMENT AMOUNT
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(
+    () => {
+
+      if (
+        selectedCharge &&
+        !waitingForSecondTap
+      ) {
+
+        const balance =
+          balances[
+            selectedCharge.id
+          ];
+
+        const remaining =
+          balance
+            ? toNumber(
+                balance.remainingBalance
+              )
+            : selectedCharge.status ===
+                "PAID"
+              ? 0
+              : toNumber(
+                  selectedCharge.patientAmount
+                );
+
+        if (
+          remaining > 0
+        ) {
+
+          setPaymentAmount(
+            String(
+              remaining
+            )
+          );
+
+        }
+
+      }
+
+    },
+    [
+      selectedCharge,
+      balances,
+      waitingForSecondTap,
+    ]
+  );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | TOTAL OUTSTANDING
+  |--------------------------------------------------------------------------
+  */
+
+  const totalOutstanding =
+    useMemo(
+      () =>
+        charges.reduce(
+          (
+            total,
+            charge
+          ) => {
+
+            const balance =
+              balances[
+                charge.id
+              ];
+
+            if (
+              balance
+            ) {
+
+              return (
+                total +
+                Math.max(
+                  0,
+                  toNumber(
+                    balance.remainingBalance
+                  )
+                )
+              );
+
+            }
+
+            if (
+              charge.status ===
+              "PAID"
+            ) {
+              return total;
+            }
+
+            return (
+              total +
+              Math.max(
+                0,
+                toNumber(
+                  charge.patientAmount
+                )
+              )
+            );
+
+          },
+          0
+        ),
+      [
+        charges,
+        balances,
+      ]
+    );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | TOTAL CHARGED
+  |--------------------------------------------------------------------------
+  */
+
+  const totalCharged =
+    useMemo(
+      () =>
+        charges.reduce(
+          (
+            total,
+            charge
+          ) =>
+            total +
+            toNumber(
+              charge.patientAmount
+            ),
+          0
+        ),
+      [
+        charges,
+      ]
+    );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | TOTAL PAID
+  |--------------------------------------------------------------------------
+  */
+
+  const totalPaid =
+    useMemo(
+      () =>
+        payments.reduce(
+          (
+            total,
+            payment
+          ) =>
+            total +
+            toNumber(
+              payment.amount
+            ),
+          0
+        ),
+      [
+        payments,
+      ]
+    );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | CREATE REAL MEDCARD PAYMENT INTENT
+  |--------------------------------------------------------------------------
+  */
+
+  const createMedCardPaymentIntent =
+    async () => {
+
+      if (
+        !selectedCharge
+      ) {
+
+        setError(
+          "Select a valid outstanding charge first."
+        );
+
+        return;
+      }
+
+
+      if (
+        !patientId
+      ) {
+
+        setError(
+          "Patient ID is required."
+        );
+
+        return;
+      }
+
+
+      if (
+        !encounterId
+      ) {
+
+        setError(
+          "Encounter ID is required."
+        );
+
+        return;
+      }
+
+
+      if (
+        numericPaymentAmount <=
+        0
+      ) {
+
+        setError(
+          "Enter a valid payment amount."
+        );
+
+        return;
+      }
+
+
+      if (
+        paymentExceedsCharge
+      ) {
+
+        setError(
+          "Payment amount exceeds the outstanding charge balance."
+        );
+
+        return;
+      }
+
+
+      if (
+        paymentExceedsWallet
+      ) {
+
+        setError(
+          "Insufficient MedCard wallet balance."
+        );
+
+        return;
+      }
+
+
+      try {
+
+        setProcessingPayment(
+          true
+        );
+
+        setError("");
+
+        setSuccessMessage("");
+
+        /*
+        |--------------------------------------------------------------------------
+        | REAL BACKEND PAYMENT INTENT
+        |--------------------------------------------------------------------------
+        */
+
+        const result =
+          await request<any>(
+            "/payment-intents",
+            {
+              method:
+                "POST",
+
+              body:
+                JSON.stringify({
+                  /*
+                  |--------------------------------------------------------------------------
+                  | IMPORTANT
+                  |
+                  | This is the existing facility ID
+                  | already used by the application.
+                  |--------------------------------------------------------------------------
+                  */
+
+                  facilityId:
+                    DEMO_FACILITY_ID,
+
+                  chargeId:
+                    selectedCharge.id,
+
+                  patientId,
+
+                  encounterId,
+
+                  amount:
+                    numericPaymentAmount,
+
+                  method:
+                    "MEDCARD",
+
+                  reference:
+                    paymentReference.trim() ||
+                    undefined,
+
+                  notes:
+                    paymentNotes.trim() ||
+                    undefined,
+                }),
+            }
+          );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | BACKEND MAY WRAP PAYMENT INTENT
+        |--------------------------------------------------------------------------
+        */
+
+        const intent =
+          result?.paymentIntent ||
+          result?.intent ||
+          result?.data?.paymentIntent ||
+          result?.data ||
+          result;
+
+
+        if (
+          !intent?.id
+        ) {
+
+          throw new Error(
+            "The backend did not return a valid payment intent."
+          );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | STORE REAL INTENT
+        |--------------------------------------------------------------------------
+        */
+
+        setPaymentIntent(
+          intent as PaymentIntent
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | NOW WAIT FOR SECOND NFC TAP
+        |--------------------------------------------------------------------------
+        */
+
+        setSecondTapCardUid(
+          null
+        );
+
+        setWaitingForSecondTap(
+          true
+        );
+
+        setSuccessMessage(
+          `Payment intent created. Tap the patient's MedCard to authorize ${formatRwf(
+            numericPaymentAmount
+          )}.`
+        );
+
+      } catch (
+        intentError: any
+      ) {
+
+        setWaitingForSecondTap(
+          false
+        );
+
+        setPaymentIntent(
+          null
+        );
+
+        setSecondTapCardUid(
+          null
+        );
+
+        setError(
+          intentError?.response
+            ?.data?.message ||
+            intentError?.message ||
+            "Unable to prepare MedCard payment."
+        );
+
+      } finally {
+
+        setProcessingPayment(
+          false
+        );
+
+      }
+
+    };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | CANCEL PAYMENT INTENT
+  |--------------------------------------------------------------------------
+  */
+
+  const cancelSecondTap =
+    async () => {
+
+      if (
+        paymentIntent?.id
+      ) {
+
+        try {
+
+          await request<any>(
+            `/payment-intents/${encodeURIComponent(
+              paymentIntent.id
+            )}/cancel`,
+            {
+              method:
+                "POST",
+            }
+          );
+
+        } catch {
+          /*
+           * Even if cancellation endpoint
+           * fails, clear local waiting state.
+           */
+        }
+
+      }
+
+
+      setWaitingForSecondTap(
+        false
+      );
+
+      setPaymentIntent(
+        null
+      );
+
+      setSecondTapCardUid(
+        null
+      );
+
+      setProcessingPayment(
+        false
+      );
+
+      setSuccessMessage("");
+
+      setError(
+        "MedCard payment cancelled."
+      );
+
+    };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | SECOND NFC TAP
+  |--------------------------------------------------------------------------
+  |
+  | This does NOT create another payment.
+  |
+  | It sends the actual card UID to the
+  | existing payment intent created above.
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(
+    () => {
+
+      if (
+        !waitingForSecondTap ||
+        !paymentIntent?.id
+      ) {
+        return;
+      }
+
+
+      const handleSecondTap =
+        async (
+          event: any
+        ) => {
+
+          /*
+          |--------------------------------------------------------------------------
+          | Extract actual UID from socket event
+          |--------------------------------------------------------------------------
+          */
+
+          const cardUid =
+            event?.data?.card?.cardUid ||
+            event?.data?.cardUid ||
+            event?.cardUid ||
+            event?.data?.data?.card?.cardUid;
+
+
+          if (
+            !cardUid ||
+            secondTapCardUid
+          ) {
+
+            return;
+
+          }
+
+
+          try {
+
+            setSecondTapCardUid(
+              cardUid
+            );
+
+            setProcessingPayment(
+              true
+            );
+
+            setError("");
+
+            setSuccessMessage(
+              "MedCard detected. Processing payment..."
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PROCESS REAL PAYMENT
+            |--------------------------------------------------------------------------
+            */
+
+            const result =
+              await request<any>(
+                `/payment-intents/${encodeURIComponent(
+                  paymentIntent.id
+                )}/process`,
+                {
+                  method:
+                    "POST",
+
+                  body:
+                    JSON.stringify({
+                      cardUid,
+                    }),
+                }
+              );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PAYMENT SUCCESS
+            |--------------------------------------------------------------------------
+            */
+
+            const paymentResponse:
+              PaymentResponse =
+              result?.payment
+                ? result
+                : {
+                    payment:
+                      result?.result
+                        ?.payment ||
+                      result?.payment,
+
+                    wallet:
+                      result?.result
+                        ?.wallet ||
+                      result?.wallet,
+
+                    calculation:
+                      result?.result
+                        ?.calculation ||
+                      result?.calculation,
+
+                    alreadyProcessed:
+                      result?.alreadyProcessed,
+
+                    paymentIntent:
+                      result?.paymentIntent,
+
+                    charge:
+                      result?.charge,
+
+                    result,
+                  };
+
+
+            setLastPayment(
+              paymentResponse
+            );
+
+
+            setWaitingForSecondTap(
+              false
+            );
+
+            setPaymentIntent(
+              null
+            );
+
+            setSecondTapCardUid(
+              null
+            );
+
+
+            setSuccessMessage(
+              result?.alreadyProcessed
+                ? "This payment was already completed."
+                : "Payment completed successfully."
+            );
+
+
+            setPaymentReference("");
+
+            setPaymentNotes("");
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | REFRESH REAL BACKEND DATA
+            |--------------------------------------------------------------------------
+            */
+
+            await loadData(
+              true
+            );
+
+
+          } catch (
+            paymentError: any
+          ) {
+
+            setSecondTapCardUid(
+              null
+            );
+
+            const message =
+              paymentError?.response
+                ?.data?.message ||
+              paymentError?.message ||
+              "Payment could not be completed.";
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | EXPIRED PAYMENT INTENT
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+              message
+                .toLowerCase()
+                .includes(
+                  "expired"
+                )
+            ) {
+
+              setWaitingForSecondTap(
+                false
+              );
+
+              setPaymentIntent(
+                null
+              );
+
+            }
+
+
+            setError(
+              message
+            );
+
+          } finally {
+
+            setProcessingPayment(
+              false
+            );
+
+          }
+
+        };
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | LISTEN FOR REAL NFC IDENTIFICATION
+      |--------------------------------------------------------------------------
+      */
+
+      socket.on(
+        "patient:identified",
+        handleSecondTap
+      );
+
+
+      return () => {
+
+        socket.off(
+          "patient:identified",
+          handleSecondTap
+        );
+
+      };
+
+    },
+    [
+      waitingForSecondTap,
+      paymentIntent,
+      secondTapCardUid,
+      request,
+      loadData,
+    ]
+  );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | NORMAL CASH / MOBILE MONEY PAYMENT
+  |--------------------------------------------------------------------------
+  */
+
+  const createNormalPayment =
+    async () => {
+
+      if (
+        !selectedCharge
+      ) {
+
+        setError(
+          "Select a charge first."
+        );
+
+        return;
+      }
+
+
+      if (
+        numericPaymentAmount <=
+        0
+      ) {
+
+        setError(
+          "Enter a valid payment amount."
+        );
+
+        return;
+      }
+
+
+      if (
+        paymentExceedsCharge
+      ) {
+
+        setError(
+          "Payment amount exceeds the outstanding charge balance."
+        );
+
+        return;
+      }
+
+
+      try {
+
+        setProcessingPayment(
+          true
+        );
+
+        setError("");
+
+        setSuccessMessage("");
+
+
+        const payment =
+          await request<Payment>(
+            `/charges/${encodeURIComponent(
+              selectedCharge.id
+            )}/payments`,
+            {
+              method:
+                "POST",
+
+              body:
+                JSON.stringify({
+                  amount:
+                    numericPaymentAmount,
+
+                  method:
+                    paymentMethod,
+
+                  reference:
+                    paymentReference.trim() ||
+                    undefined,
+
+                  notes:
+                    paymentNotes.trim() ||
+                    undefined,
+                }),
+            }
+          );
+
+
+        setLastPayment({
+          payment,
+
+          charge:
+            selectedCharge,
+        });
+
+
+        setSuccessMessage(
+          "Payment completed successfully."
+        );
+
+
+        setPaymentReference("");
+
+        setPaymentNotes("");
+
+
+        await loadData(
+          true
+        );
+
+      } catch (
+        paymentError: any
+      ) {
+
+        setError(
+          paymentError?.response
+            ?.data?.message ||
+            paymentError?.message ||
+            "Payment could not be completed."
+        );
+
+      } finally {
+
+        setProcessingPayment(
+          false
+        );
+
+      }
+
+    };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | MAIN PAYMENT HANDLER
+  |--------------------------------------------------------------------------
+  */
+
+  const handlePayment =
+    async () => {
+
+      if (
+        paymentMethod ===
+        "MEDCARD"
+      ) {
+
+        await createMedCardPaymentIntent();
+
+        return;
+      }
+
+
+      await createNormalPayment();
+
+    };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | SELECT CHARGE
+  |--------------------------------------------------------------------------
+  */
+
+  const handleSelectCharge =
+    (
+      charge: Charge
+    ) => {
+
+      const balance =
+        balances[
+          charge.id
+        ];
+
+
+      const remaining =
+        balance
+          ? toNumber(
+              balance.remainingBalance
+            )
+          : charge.status ===
+              "PAID"
+            ? 0
+            : toNumber(
+                charge.patientAmount
+              );
+
+
+      setSelectedChargeId(
+        charge.id
+      );
+
+
+      if (
+        remaining > 0
+      ) {
+
+        setPaymentAmount(
+          String(
+            remaining
+          )
+        );
+
+      } else {
+
+        setPaymentAmount(
+          ""
+        );
+
+      }
+
+
+      setPaymentReference("");
+
+      setPaymentNotes("");
+
+      setError("");
+
+      setSuccessMessage("");
+
+      setLastPayment(
+        null
+      );
+
+    };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | PATIENT DISPLAY
+  |--------------------------------------------------------------------------
+  */
+
+  const patientName =
+    patient
+      ? `${patient.firstName || ""} ${
+          patient.lastName || ""
+        }`.trim()
+      : "Patient";
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | BACK TO PATIENT
+  |--------------------------------------------------------------------------
+  */
+
+  const handleBackToPatient =
+    () => {
+
+      if (!patientId) {
+
+        navigate(
+          "/patients"
+        );
+
+        return;
+      }
+
+
+      const search =
+        encounterId
+          ? `?encounterId=${encodeURIComponent(
+              encounterId
+            )}`
+          : "";
+
+
+      navigate(
+        `/patients/${encodeURIComponent(
+          patientId
+        )}${search}`
+      );
+
+    };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | PAYMENT METHOD LABEL
+  |--------------------------------------------------------------------------
+  */
+
+  const paymentMethodLabel =
+    paymentMethod ===
+    "MEDCARD"
+      ? "MedCard"
+      : paymentMethod ===
+          "MOBILE_MONEY"
+        ? "Mobile Money"
+        : "Cash";
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | RENDER
+  |--------------------------------------------------------------------------
+  */
 
   return (
-    <AppLayout
-      pageTitle="Payment Workspace & Checkout"
-      pageSubtitle="King Faisal Hospital • MedCard Billing & Co-Pay Station"
-      actionButton={{
-        label: "Refresh Billing",
-        onClick: () => void loadPaymentData(),
-        icon: <RefreshCw size={15} className={loading ? "spin" : ""} />,
-      }}
-    >
-      <div className="payment-workspace-container">
+    <div className="payment-workspace-page">
+
+      <main className="payment-page-content">
+
         {/* =========================================================
-            PATIENT IDENTIFICATION HERO
+            HEADER
         ========================================================== */}
-        <section className="payment-patient-hero">
-          <div className="payment-patient-left">
-            <div className="payment-patient-avatar">
-              {getInitials(patient?.firstName, patient?.lastName)}
+
+        <header className="payment-page-header">
+
+          <div className="payment-header-left">
+
+            <button
+              type="button"
+              className="payment-back-button"
+              onClick={
+                handleBackToPatient
+              }
+            >
+              <ArrowLeft
+                size={17}
+              />
+
+              <span>
+                Back to patient
+              </span>
+            </button>
+
+
+            <div className="payment-title-block">
+
+              <span className="payment-eyebrow">
+                MEDCARD PAYMENTS
+              </span>
+
+              <h1>
+                Payment Workspace
+              </h1>
+
+              <p>
+                Manage real charges and process
+                secure patient payments.
+              </p>
+
             </div>
 
-            <div className="payment-patient-info">
-              <strong>
-                {patient?.firstName} {patient?.lastName}
-              </strong>
-              <div className="payment-patient-tags">
-                <span>Patient ID: {patient?.patientNumber || "MED-2026-000001"}</span>
-                <span>Encounter: #{encounterId.slice(0, 8)}</span>
-                <span className="clinical-status-badge active">
-                  <ShieldCheck size={11} />
-                  RSSB / RAMA (85% COVERED)
-                </span>
-                <span className="clinical-status-badge completed">
-                  <CreditCard size={11} />
-                  MEDCARD VERIFIED
-                </span>
-              </div>
-            </div>
           </div>
+
 
           <button
             type="button"
-            className="action-pill-btn secondary small"
-            onClick={() => navigate(`/patient-workspace/${patientId}?encounterId=${encounterId}`)}
+            className="payment-refresh-button"
+            onClick={() =>
+              loadData(
+                true
+              )
+            }
+            disabled={
+              loading ||
+              refreshing ||
+              waitingForSecondTap
+            }
           >
-            <RotateCcw size={13} />
-            <span>Return to Clinical Chart</span>
+
+            {refreshing ? (
+              <LoaderCircle
+                size={16}
+                className="payment-spin"
+              />
+            ) : (
+              <RefreshCw
+                size={16}
+              />
+            )}
+
+            <span>
+              Refresh
+            </span>
+
           </button>
-        </section>
+
+        </header>
+
 
         {/* =========================================================
-            FINANCIAL METRIC STRIP (4-CARD GRID)
+            ERROR
         ========================================================== */}
-        <div className="analytics-metrics-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-          <div className="metric-stat-card">
-            <div className="metric-data">
-              <span className="metric-label">Total Gross Services</span>
-              <strong className="metric-value">{formatRwf(totalGross)}</strong>
-              <small className="metric-trend neutral">Consultation, Lab & Meds</small>
-            </div>
-          </div>
-
-          <div className="metric-stat-card">
-            <div className="metric-data">
-              <span className="metric-label">Insurance Covered</span>
-              <strong className="metric-value" style={{ color: "var(--green-primary)" }}>
-                {formatRwf(totalInsurance)}
-              </strong>
-              <small className="metric-trend positive">85% Scheme Subsidy</small>
-            </div>
-          </div>
-
-          <div className="metric-stat-card">
-            <div className="metric-data">
-              <span className="metric-label">Patient Co-Pay Due</span>
-              <strong className="metric-value" style={{ color: "#c2410c" }}>
-                {formatRwf(totalPatientCoPay)}
-              </strong>
-              <small className="metric-trend highlight">Net Out-of-Pocket</small>
-            </div>
-          </div>
-
-          <div className="metric-stat-card">
-            <div className="metric-data">
-              <span className="metric-label">MedCard Wallet Balance</span>
-              <strong className="metric-value">{formatRwf(walletBalance)}</strong>
-              <small className="metric-trend positive">Sufficient Funds</small>
-            </div>
-          </div>
-        </div>
-
-        {/* Alerts */}
-        {successMessage && (
-          <div className="clinical-success">
-            <CheckCircle2 size={18} />
-            <span>{successMessage}</span>
-          </div>
-        )}
 
         {error && (
-          <div className="clinical-error">
-            <XCircle size={18} />
-            <span>{error}</span>
+          <div className="payment-alert payment-alert-error">
+
+            <XCircle
+              size={19}
+            />
+
+            <div>
+
+              <strong>
+                Payment error
+              </strong>
+
+              <span>
+                {error}
+              </span>
+
+            </div>
+
           </div>
         )}
 
+
         {/* =========================================================
-            INTERACTIVE PAYMENT CONFIRMATION / SETTLEMENT AREA
+            SUCCESS
         ========================================================== */}
-        {!paymentComplete ? (
-          <>
-            {/* STATE A: WAITING FOR SECOND NFC TAP */}
-            {waitingForSecondTap && paymentIntent ? (
-              <section className="payment-second-tap-banner">
-                <div className="payment-tap-radar">
-                  {processingPayment ? (
-                    <LoaderCircle size={36} className="spin" />
-                  ) : (
-                    <Wifi size={36} />
-                  )}
-                </div>
 
-                <h2>
-                  {processingPayment
-                    ? "Authorizing & Settling Payment..."
-                    : "Ask Patient to Tap MedCard"}
-                </h2>
+        {successMessage && (
+          <div className="payment-alert payment-alert-success">
 
-                <p>
-                  Payment authorization for{" "}
-                  <strong style={{ color: "var(--green-primary)" }}>
-                    {formatRwf(totalPatientCoPay)}
-                  </strong>{" "}
-                  is primed. Hold the patient's card on the NFC desk reader to confirm deduction.
-                </p>
+            <CheckCircle2
+              size={19}
+            />
 
-                <div className="payment-tap-meta-row">
-                  <span>Ref: {paymentIntent.reference}</span>
-                  <span>Amount: {formatRwf(paymentIntent.amount)}</span>
-                  <span>Target: MedCard Healthcare Wallet</span>
-                </div>
+            <div>
 
-                <div style={{ display: "flex", gap: "10px", marginTop: "6px" }}>
-                  <button
-                    type="button"
-                    className="action-pill-btn primary"
-                    onClick={executePaymentCompletion}
-                    disabled={processingPayment}
-                  >
-                    {processingPayment ? (
-                      <>
-                        <LoaderCircle size={15} className="spin" />
-                        <span>Processing Tap...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard size={15} />
-                        <span>Simulate NFC Confirmation Tap</span>
-                      </>
-                    )}
-                  </button>
+              <strong>
+                MedCard
+              </strong>
 
-                  <button
-                    type="button"
-                    className="action-pill-btn secondary"
-                    onClick={handleCancelIntent}
-                    disabled={processingPayment}
-                  >
-                    <X size={15} />
-                    <span>Cancel Intent</span>
-                  </button>
-                </div>
-              </section>
-            ) : (
-              /* STATE B: METHOD SELECTOR & AUTHORIZE BUTTON */
-              <section className="topup-panel-card">
-                <div className="topup-panel-header">
-                  <div className="workspace-card-icon">
-                    <Wallet size={18} />
-                  </div>
-                  <div>
-                    <h2>Select Payment Channel</h2>
-                    <p>Choose authorization method to settle patient co-pay</p>
-                  </div>
-                </div>
+              <span>
+                {successMessage}
+              </span>
 
-                <div className="payment-methods-grid">
-                  <div
-                    className={`payment-method-card ${selectedMethod === "MEDCARD" ? "selected" : ""}`}
-                    onClick={() => setSelectedMethod("MEDCARD")}
-                  >
-                    <CreditCard size={22} style={{ color: "var(--green-primary)" }} />
+            </div>
+
+          </div>
+        )}
+
+
+        {/* =========================================================
+            PATIENT SUMMARY
+        ========================================================== */}
+
+        <section className="payment-patient-card">
+
+          <div className="payment-patient-avatar">
+            {getInitials(
+              patient?.firstName,
+              patient?.lastName
+            )}
+          </div>
+
+
+          <div className="payment-patient-info">
+
+            <span>
+              PATIENT
+            </span>
+
+            <h2>
+              {patientName}
+            </h2>
+
+            <small>
+              {patient?.patientNumber ||
+                patientId ||
+                "—"}
+            </small>
+
+          </div>
+
+
+          <div className="payment-patient-meta">
+
+            <div>
+
+              <span>
+                Encounter
+              </span>
+
+              <strong>
+                {encounter?.id
+                  ? encounter.id.slice(
+                      0,
+                      8
+                    )
+                  : encounterId
+                    ? encounterId.slice(
+                        0,
+                        8
+                      )
+                    : "—"}
+              </strong>
+
+            </div>
+
+
+            <div>
+
+              <span>
+                Wallet
+              </span>
+
+              <strong>
+                {formatRwf(
+                  wallet?.balance
+                )}
+              </strong>
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+        {/* =========================================================
+            SUMMARY
+        ========================================================== */}
+
+        <section className="payment-summary-grid">
+
+          <div className="payment-summary-card">
+
+            <div className="payment-summary-icon">
+
+              <CreditCard
+                size={19}
+              />
+
+            </div>
+
+            <div>
+
+              <span>
+                Total charges
+              </span>
+
+              <strong>
+                {formatRwf(
+                  totalCharged
+                )}
+              </strong>
+
+            </div>
+
+          </div>
+
+
+          <div className="payment-summary-card">
+
+            <div className="payment-summary-icon">
+
+              <Banknote
+                size={19}
+              />
+
+            </div>
+
+            <div>
+
+              <span>
+                Total paid
+              </span>
+
+              <strong>
+                {formatRwf(
+                  totalPaid
+                )}
+              </strong>
+
+            </div>
+
+          </div>
+
+
+          <div className="payment-summary-card">
+
+            <div className="payment-summary-icon">
+
+              <Wallet
+                size={19}
+              />
+
+            </div>
+
+            <div>
+
+              <span>
+                Outstanding
+              </span>
+
+              <strong>
+                {formatRwf(
+                  totalOutstanding
+                )}
+              </strong>
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+        {/* =========================================================
+            TABS
+        ========================================================== */}
+
+        <div className="payment-tabs">
+
+          <button
+            type="button"
+            className={
+              activeTab ===
+              "charges"
+                ? "active"
+                : ""
+            }
+            onClick={() =>
+              setActiveTab(
+                "charges"
+              )
+            }
+          >
+
+            <CreditCard
+              size={16}
+            />
+
+            Charges
+
+          </button>
+
+
+          <button
+            type="button"
+            className={
+              activeTab ===
+              "transactions"
+                ? "active"
+                : ""
+            }
+            onClick={() =>
+              setActiveTab(
+                "transactions"
+              )
+            }
+          >
+
+            <History
+              size={16}
+            />
+
+            Wallet activity
+
+          </button>
+
+        </div>
+
+
+        {/* =========================================================
+            LOADING
+        ========================================================== */}
+
+        {loading ? (
+
+          <section className="payment-loading-state">
+
+            <LoaderCircle
+              size={32}
+              className="payment-spin"
+            />
+
+            <strong>
+              Loading payment information...
+            </strong>
+
+            <span>
+              Retrieving real charges and
+              wallet information.
+            </span>
+
+          </section>
+
+        ) : (
+
+          <> 
+                      {/* =====================================================
+                CHARGES TAB
+            ====================================================== */}
+
+            {activeTab === "charges" && (
+              <section className="payment-main-grid">
+
+                {/* =================================================
+                    CHARGE LIST
+                ================================================== */}
+
+                <div className="payment-charges-panel">
+
+                  <div className="payment-section-header">
+
                     <div>
-                      <strong>MedCard NFC Wallet</strong>
-                      <small>Instant second-tap deduction ({formatRwf(walletBalance)} available)</small>
+
+                      <span className="payment-section-eyebrow">
+                        ENCOUNTER CHARGES
+                      </span>
+
+                      <h2>
+                        Outstanding services
+                      </h2>
+
+                      <p>
+                        Select a charge to process
+                        payment.
+                      </p>
+
                     </div>
-                  </div>
 
-                  <div
-                    className={`payment-method-card ${selectedMethod === "MOMO" ? "selected" : ""}`}
-                    onClick={() => setSelectedMethod("MOMO")}
-                  >
-                    <Smartphone size={22} />
-                    <div>
-                      <strong>Mobile Money (MoMo / Airtel)</strong>
-                      <small>Prompt USSD push to patient's mobile number</small>
-                    </div>
-                  </div>
-
-                  <div
-                    className={`payment-method-card ${selectedMethod === "CASH" ? "selected" : ""}`}
-                    onClick={() => setSelectedMethod("CASH")}
-                  >
-                    <Banknote size={22} />
-                    <div>
-                      <strong>Cash at Reception Desk</strong>
-                      <small>Cashier manual receipt settlement</small>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="clinical-form-actions" style={{ marginTop: "8px" }}>
-                  <div className="clinical-form-status">
-                    <ShieldCheck size={16} />
-                    <span>Co-Pay Amount: {formatRwf(totalPatientCoPay)}</span>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="action-pill-btn primary"
-                    onClick={handleInitiatePayment}
-                    disabled={loading}
-                  >
-                    <CreditCard size={16} />
-                    <span>
-                      {selectedMethod === "MEDCARD"
-                        ? "Initiate NFC Authorization Tap"
-                        : "Authorize & Settle Co-Pay"}
+                    <span className="payment-charge-count">
+                      {charges.length}{" "}
+                      {charges.length === 1
+                        ? "charge"
+                        : "charges"}
                     </span>
-                  </button>
+
+                  </div>
+
+
+                  {charges.length === 0 ? (
+
+                    <div className="payment-empty-state">
+
+                      <CreditCard
+                        size={34}
+                      />
+
+                      <strong>
+                        No charges found
+                      </strong>
+
+                      <span>
+                        No charges have been created
+                        for this encounter yet.
+                      </span>
+
+                    </div>
+
+                  ) : (
+
+                    <div className="payment-charge-list">
+
+                      {charges.map(
+                        (
+                          charge
+                        ) => {
+
+                          const balance =
+                            balances[
+                              charge.id
+                            ];
+
+
+                          const remaining =
+                            balance
+                              ? toNumber(
+                                  balance.remainingBalance
+                                )
+                              : charge.status ===
+                                  "PAID"
+                                ? 0
+                                : toNumber(
+                                    charge.patientAmount
+                                  );
+
+
+                          const isSelected =
+                            selectedChargeId ===
+                            charge.id;
+
+
+                          const isPaid =
+                            remaining <=
+                              0 ||
+                            charge.status ===
+                              "PAID";
+
+
+                          return (
+
+                            <button
+                              key={
+                                charge.id
+                              }
+                              type="button"
+                              className={`payment-charge-row ${
+                                isSelected
+                                  ? "selected"
+                                  : ""
+                              } ${
+                                isPaid
+                                  ? "paid"
+                                  : ""
+                              }`}
+                              onClick={() =>
+                                handleSelectCharge(
+                                  charge
+                                )
+                              }
+                            >
+
+                              <div className="payment-charge-main">
+
+                                <div className="payment-charge-icon">
+
+                                  {isPaid ? (
+                                    <CheckCircle2
+                                      size={18}
+                                    />
+                                  ) : (
+                                    <CreditCard
+                                      size={18}
+                                    />
+                                  )}
+
+                                </div>
+
+
+                                <div className="payment-charge-details">
+
+                                  <strong>
+                                    {getChargeLabel(
+                                      charge
+                                    )}
+                                  </strong>
+
+                                  <span>
+                                    {charge.service
+                                      ?.code ||
+                                      "Healthcare service"}
+                                  </span>
+
+                                  <small>
+                                    Created{" "}
+                                    {formatDateTime(
+                                      charge.createdAt
+                                    )}
+                                  </small>
+
+                                </div>
+
+                              </div>
+
+
+                              <div className="payment-charge-amounts">
+
+                                <div>
+
+                                  <span>
+                                    Patient amount
+                                  </span>
+
+                                  <strong>
+                                    {formatRwf(
+                                      charge.patientAmount
+                                    )}
+                                  </strong>
+
+                                </div>
+
+
+                                <div>
+
+                                  <span>
+                                    Remaining
+                                  </span>
+
+                                  <strong
+                                    className={
+                                      remaining >
+                                      0
+                                        ? "amount-due"
+                                        : "amount-paid"
+                                    }
+                                  >
+                                    {formatRwf(
+                                      remaining
+                                    )}
+                                  </strong>
+
+                                </div>
+
+                              </div>
+
+
+                              <div className="payment-charge-status">
+
+                                <span
+                                  className={`payment-status-badge ${
+                                    isPaid
+                                      ? "paid"
+                                      : "pending"
+                                  }`}
+                                >
+                                  {isPaid
+                                    ? "Paid"
+                                    : getStatusLabel(
+                                        charge.status
+                                      )}
+                                </span>
+
+                                <ChevronRight
+                                  size={17}
+                                />
+
+                              </div>
+
+                            </button>
+
+                          );
+
+                        }
+                      )}
+
+                    </div>
+
+                  )}
+
                 </div>
+
+
+                {/* =================================================
+                    PAYMENT PANEL
+                ================================================== */}
+
+                <aside className="payment-processing-panel">
+
+                  <div className="payment-section-header">
+
+                    <div>
+
+                      <span className="payment-section-eyebrow">
+                        PAYMENT
+                      </span>
+
+                      <h2>
+                        Process payment
+                      </h2>
+
+                    </div>
+
+                    <ShieldCheck
+                      size={20}
+                    />
+
+                  </div>
+
+
+                  {!selectedCharge ? (
+
+                    <div className="payment-select-charge-state">
+
+                      <CreditCard
+                        size={36}
+                      />
+
+                      <strong>
+                        Select a charge
+                      </strong>
+
+                      <span>
+                        Choose an outstanding charge
+                        from the list to continue.
+                      </span>
+
+                    </div>
+
+                  ) : (
+
+                    <>
+
+                      {/* =========================================
+                          SELECTED CHARGE
+                      ========================================== */}
+
+                      <div className="payment-selected-charge">
+
+                        <div>
+
+                          <span>
+                            Selected charge
+                          </span>
+
+                          <strong>
+                            {getChargeLabel(
+                              selectedCharge
+                            )}
+                          </strong>
+
+                        </div>
+
+
+                        <div className="selected-charge-amount">
+
+                          {formatRwf(
+                            outstandingAmount
+                          )}
+
+                        </div>
+
+                      </div>
+
+
+                      {/* =========================================
+                          PAYMENT METHOD
+                      ========================================== */}
+
+                      <div className="payment-form-group">
+
+                        <label>
+                          Payment method
+                        </label>
+
+
+                        <div className="payment-method-grid">
+
+                          <button
+                            type="button"
+                            className={
+                              paymentMethod ===
+                              "MEDCARD"
+                                ? "active"
+                                : ""
+                            }
+                            onClick={() => {
+
+                              setPaymentMethod(
+                                "MEDCARD"
+                              );
+
+                              setError("");
+
+                              setSuccessMessage("");
+
+                            }}
+                            disabled={
+                              waitingForSecondTap ||
+                              processingPayment
+                            }
+                          >
+
+                            <CreditCard
+                              size={18}
+                            />
+
+                            <span>
+                              MedCard
+                            </span>
+
+                            <small>
+                              Tap to pay
+                            </small>
+
+                          </button>
+
+
+                          <button
+                            type="button"
+                            className={
+                              paymentMethod ===
+                              "CASH"
+                                ? "active"
+                                : ""
+                            }
+                            onClick={() => {
+
+                              setPaymentMethod(
+                                "CASH"
+                              );
+
+                              setError("");
+
+                              setSuccessMessage("");
+
+                            }}
+                            disabled={
+                              waitingForSecondTap ||
+                              processingPayment
+                            }
+                          >
+
+                            <Banknote
+                              size={18}
+                            />
+
+                            <span>
+                              Cash
+                            </span>
+
+                            <small>
+                              Manual payment
+                            </small>
+
+                          </button>
+
+
+                          <button
+                            type="button"
+                            className={
+                              paymentMethod ===
+                              "MOBILE_MONEY"
+                                ? "active"
+                                : ""
+                            }
+                            onClick={() => {
+
+                              setPaymentMethod(
+                                "MOBILE_MONEY"
+                              );
+
+                              setError("");
+
+                              setSuccessMessage("");
+
+                            }}
+                            disabled={
+                              waitingForSecondTap ||
+                              processingPayment
+                            }
+                          >
+
+                            <Smartphone
+                              size={18}
+                            />
+
+                            <span>
+                              Mobile Money
+                            </span>
+
+                            <small>
+                              MTN / Airtel
+                            </small>
+
+                          </button>
+
+                        </div>
+
+                      </div>
+
+
+                      {/* =========================================
+                          AMOUNT
+                      ========================================== */}
+
+                      <div className="payment-form-group">
+
+                        <label
+                          htmlFor="paymentAmount"
+                        >
+                          Amount to pay
+                        </label>
+
+
+                        <div className="payment-amount-input">
+
+                          <input
+                            id="paymentAmount"
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={
+                              paymentAmount
+                            }
+                            onChange={(
+                              event
+                            ) =>
+                              setPaymentAmount(
+                                event.target.value
+                              )
+                            }
+                            disabled={
+                              waitingForSecondTap ||
+                              processingPayment
+                            }
+                            placeholder="0"
+                          />
+
+                          <span>
+                            RWF
+                          </span>
+
+                        </div>
+
+
+                        <div className="payment-amount-hint">
+
+                          Outstanding balance:{" "}
+
+                          <strong>
+                            {formatRwf(
+                              outstandingAmount
+                            )}
+                          </strong>
+
+                        </div>
+
+
+                        {paymentExceedsCharge && (
+                          <div className="payment-field-error">
+                            Payment amount cannot
+                            exceed the outstanding
+                            charge.
+                          </div>
+                        )}
+
+
+                        {paymentExceedsWallet && (
+                          <div className="payment-field-error">
+                            Insufficient wallet
+                            balance.
+                          </div>
+                        )}
+
+                      </div>
+
+
+                      {/* =========================================
+                          MEDCARD WALLET
+                      ========================================== */}
+
+                      {paymentMethod ===
+                        "MEDCARD" && (
+
+                        <div className="payment-wallet-info">
+
+                          <div className="payment-wallet-info-icon">
+
+                            <Wallet
+                              size={18}
+                            />
+
+                          </div>
+
+
+                          <div>
+
+                            <span>
+                              Available wallet balance
+                            </span>
+
+                            <strong>
+                              {formatRwf(
+                                wallet?.balance
+                              )}
+                            </strong>
+
+                          </div>
+
+                        </div>
+
+                      )}
+
+
+                      {/* =========================================
+                          REFERENCE
+                      ========================================== */}
+
+                      <div className="payment-form-group">
+
+                        <label
+                          htmlFor="paymentReference"
+                        >
+                          Reference
+                          <span>
+                            {" "}
+                            (optional)
+                          </span>
+                        </label>
+
+
+                        <input
+                          id="paymentReference"
+                          type="text"
+                          value={
+                            paymentReference
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            setPaymentReference(
+                              event.target.value
+                            )
+                          }
+                          disabled={
+                            waitingForSecondTap ||
+                            processingPayment
+                          }
+                          placeholder="Payment reference"
+                          className="payment-text-input"
+                        />
+
+                      </div>
+
+
+                      {/* =========================================
+                          NOTES
+                      ========================================== */}
+
+                      <div className="payment-form-group">
+
+                        <label
+                          htmlFor="paymentNotes"
+                        >
+                          Notes
+                          <span>
+                            {" "}
+                            (optional)
+                          </span>
+                        </label>
+
+
+                        <textarea
+                          id="paymentNotes"
+                          value={
+                            paymentNotes
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            setPaymentNotes(
+                              event.target.value
+                            )
+                          }
+                          disabled={
+                            waitingForSecondTap ||
+                            processingPayment
+                          }
+                          placeholder="Add payment notes..."
+                          rows={3}
+                          className="payment-textarea"
+                        />
+
+                      </div>
+
+
+                      {/* =========================================
+                          REAL SECOND TAP STATE
+                      ========================================== */}
+
+                      {waitingForSecondTap && (
+
+                        <div className="payment-second-tap-card">
+
+                          <div className="payment-second-tap-icon">
+
+                            {secondTapCardUid ? (
+
+                              <LoaderCircle
+                                size={28}
+                                className="payment-spin"
+                              />
+
+                            ) : (
+
+                              <Wifi
+                                size={28}
+                              />
+
+                            )}
+
+                          </div>
+
+
+                          <div>
+
+                            <strong>
+                              {secondTapCardUid
+                                ? "Authorizing payment..."
+                                : "Tap MedCard to pay"}
+                            </strong>
+
+
+                            <span>
+                              {secondTapCardUid
+                                ? "MedCard detected. Please wait while the real payment is processed."
+                                : `Tap the patient's MedCard to authorize ${formatRwf(
+                                    numericPaymentAmount
+                                  )}.`}
+                            </span>
+
+                          </div>
+
+
+                          {!secondTapCardUid && (
+
+                            <button
+                              type="button"
+                              className="payment-cancel-button"
+                              onClick={
+                                cancelSecondTap
+                              }
+                              disabled={
+                                processingPayment
+                              }
+                            >
+                              Cancel
+                            </button>
+
+                          )}
+
+                        </div>
+
+                      )}
+
+
+                      {/* =========================================
+                          PAYMENT BUTTON
+                      ========================================== */}
+
+                      {!waitingForSecondTap && (
+
+                        <button
+                          type="button"
+                          className="payment-submit-button"
+                          onClick={
+                            handlePayment
+                          }
+                          disabled={
+                            !canPay
+                          }
+                        >
+
+                          {processingPayment ? (
+
+                            <>
+
+                              <LoaderCircle
+                                size={18}
+                                className="payment-spin"
+                              />
+
+                              <span>
+                                Preparing payment...
+                              </span>
+
+                            </>
+
+                          ) : (
+
+                            <>
+
+                              {paymentMethod ===
+                              "MEDCARD" ? (
+
+                                <CreditCard
+                                  size={18}
+                                />
+
+                              ) : (
+
+                                <Banknote
+                                  size={18}
+                                />
+
+                              )}
+
+
+                              <span>
+                                {paymentMethod ===
+                                "MEDCARD"
+                                  ? "Continue with MedCard"
+                                  : "Complete payment"}
+                              </span>
+
+
+                              <ArrowUpRight
+                                size={17}
+                              />
+
+                            </>
+
+                          )}
+
+                        </button>
+
+                      )}
+
+
+                      {/* =========================================
+                          SECURITY NOTE
+                      ========================================== */}
+
+                      {paymentMethod ===
+                        "MEDCARD" &&
+                        !waitingForSecondTap && (
+
+                        <div className="payment-security-note">
+
+                          <LockKeyhole
+                            size={15}
+                          />
+
+                          <span>
+                            MedCard payment requires
+                            a second physical card tap
+                            before the wallet is debited.
+                          </span>
+
+                        </div>
+
+                      )}
+
+                    </>
+
+                  )}
+
+                </aside>
+
               </section>
             )}
+
+
+            {/* =====================================================
+                WALLET TRANSACTIONS TAB
+            ====================================================== */}
+
+            {activeTab ===
+              "transactions" && (
+
+              <section className="payment-transactions-panel">
+
+                <div className="payment-section-header">
+
+                  <div>
+
+                    <span className="payment-section-eyebrow">
+                      WALLET ACTIVITY
+                    </span>
+
+                    <h2>
+                      Recent transactions
+                    </h2>
+
+                    <p>
+                      Real wallet transactions
+                      recorded by MedCard.
+                    </p>
+
+                  </div>
+
+
+                  <Wallet
+                    size={21}
+                  />
+
+                </div>
+
+
+                {transactions.length ===
+                0 ? (
+
+                  <div className="payment-empty-state">
+
+                    <History
+                      size={34}
+                    />
+
+                    <strong>
+                      No wallet transactions
+                    </strong>
+
+                    <span>
+                      There is no transaction
+                      history for this patient yet.
+                    </span>
+
+                  </div>
+
+                ) : (
+
+                  <div className="payment-transaction-list">
+
+                    {transactions.map(
+                      (
+                        transaction
+                      ) => {
+
+                        const isCredit =
+                          transaction.type ===
+                          "CREDIT";
+
+
+                        return (
+
+                          <div
+                            key={
+                              transaction.id
+                            }
+                            className="payment-transaction-row"
+                          >
+
+                            <div
+                              className={`payment-transaction-icon ${
+                                isCredit
+                                  ? "credit"
+                                  : "debit"
+                              }`}
+                            >
+
+                              <ArrowUpRight
+                                size={17}
+                              />
+
+                            </div>
+
+
+                            <div className="payment-transaction-details">
+
+                              <strong>
+                                {transaction.description ||
+                                  (isCredit
+                                    ? "Wallet top-up"
+                                    : "Wallet payment")}
+                              </strong>
+
+                              <span>
+                                {transaction.reference ||
+                                  "No reference"}
+                              </span>
+
+                              <small>
+                                {formatDateTime(
+                                  transaction.createdAt
+                                )}
+                              </small>
+
+                            </div>
+
+
+                            <div className="payment-transaction-amount">
+
+                              <strong
+                                className={
+                                  isCredit
+                                    ? "credit"
+                                    : "debit"
+                                }
+                              >
+                                {isCredit
+                                  ? "+"
+                                  : "-"}
+                                {formatRwf(
+                                  transaction.amount
+                                )}
+                              </strong>
+
+                              <small>
+                                Balance:{" "}
+                                {formatRwf(
+                                  transaction.balanceAfter
+                                )}
+                              </small>
+
+                            </div>
+
+                          </div>
+
+                        );
+
+                      }
+                    )}
+
+                  </div>
+
+                )}
+
+              </section>
+
+            )}
+
+
+            {/* =====================================================
+                LAST PAYMENT RESULT
+            ====================================================== */}
+
+            {lastPayment && (
+
+              <section className="payment-success-card">
+
+                <div className="payment-success-icon">
+
+                  <CheckCircle2
+                    size={25}
+                  />
+
+                </div>
+
+
+                <div className="payment-success-content">
+
+                  <span className="payment-section-eyebrow">
+                    PAYMENT CONFIRMED
+                  </span>
+
+                  <h2>
+                    Payment completed
+                  </h2>
+
+                  <p>
+                    The payment has been recorded
+                    by the MedCard backend.
+                  </p>
+
+
+                  <div className="payment-success-details">
+
+                    <div>
+
+                      <span>
+                        Amount
+                      </span>
+
+                      <strong>
+                        {formatRwf(
+                          lastPayment
+                            .payment
+                            ?.amount
+                        )}
+                      </strong>
+
+                    </div>
+
+
+                    <div>
+
+                      <span>
+                        Method
+                      </span>
+
+                      <strong>
+                        {lastPayment
+                          .payment
+                          ?.method ||
+                          paymentMethodLabel}
+                      </strong>
+
+                    </div>
+
+
+                    <div>
+
+                      <span>
+                        Reference
+                      </span>
+
+                      <strong>
+                        {lastPayment
+                          .payment
+                          ?.reference ||
+                          "—"}
+                      </strong>
+
+                    </div>
+
+
+                    {lastPayment.wallet && (
+
+                      <div>
+
+                        <span>
+                          New wallet balance
+                        </span>
+
+                        <strong>
+                          {formatRwf(
+                            lastPayment
+                              .wallet
+                              .balanceAfter ??
+                            lastPayment
+                              .wallet
+                              .balance
+                          )}
+                        </strong>
+
+                      </div>
+
+                    )}
+
+                  </div>
+
+                </div>
+
+              </section>
+
+            )}
+
           </>
-        ) : (
-          /* STATE C: CONFIRMED PAYMENT RECEIPT */
-          <section className="payment-receipt-card">
-            <div className="payment-receipt-header">
-              <div className="gov-seal-box">
-                <strong>REPUBLIC OF RWANDA • MINISTRY OF HEALTH</strong>
-                <small>King Faisal Hospital • MedCard Official Certified Electronic Receipt</small>
-              </div>
-
-              <span className="payment-receipt-badge">
-                <CheckCircle2 size={15} />
-                SETTLED & CONFIRMED
-              </span>
-            </div>
-
-            <div className="print-patient-summary">
-              <div>
-                <small>PATIENT NAME</small>
-                <strong>{patient?.firstName} {patient?.lastName}</strong>
-              </div>
-              <div>
-                <small>TRANSACTION REF</small>
-                <strong style={{ color: "var(--green-primary)", fontFamily: "monospace" }}>
-                  {completedTransactionRef}
-                </strong>
-              </div>
-              <div>
-                <small>AMOUNT PAID</small>
-                <strong>{formatRwf(totalPatientCoPay)}</strong>
-              </div>
-            </div>
-
-            <div className="print-body-content">
-              <strong>PAYMENT SUMMARY</strong>
-              <p>
-                Full patient responsibility of {formatRwf(totalPatientCoPay)} settled via MedCard Wallet.
-                Updated wallet balance: <strong>{formatRwf(walletBalance)}</strong>. Encounter #{encounterId.slice(0, 8)} billing closed.
-              </p>
-
-              <div className="print-verified-footer">
-                <ShieldCheck size={16} />
-                <span>Digitally Signed: RSA-4096-SHA256 • Verified Rwanda Health Grid Payment Ledger</span>
-              </div>
-            </div>
-
-            <div className="modal-actions-bar" style={{ marginTop: "10px", padding: 0 }}>
-              <button
-                type="button"
-                className="action-pill-btn secondary"
-                onClick={() => window.print()}
-              >
-                <Printer size={15} />
-                <span>Print Official Receipt</span>
-              </button>
-
-              <button
-                type="button"
-                className="action-pill-btn primary"
-                onClick={() => navigate(`/patient-workspace/${patientId}?encounterId=${encounterId}`)}
-              >
-                <CheckCircle2 size={15} />
-                <span>Complete & Return to Patient Chart</span>
-              </button>
-            </div>
-          </section>
         )}
 
-        {/* =========================================================
-            ITEMIZED CHARGES BREAKDOWN TABLE
-        ========================================================== */}
-        <section className="topup-panel-card">
-          <div className="topup-panel-header">
-            <div className="workspace-card-icon">
-              <Banknote size={18} />
-            </div>
-            <div>
-              <h2>Itemized Clinical Charges Breakdown</h2>
-              <p>Detailed split between RSSB/RAMA insurance coverage and patient co-pay</p>
-            </div>
-          </div>
+      </main>
 
-          <div className="workspace-history-list">
-            {SAMPLE_SERVICE_ITEMS.map((item) => (
-              <div key={item.id} className="workspace-history-card">
-                <div className="workspace-history-icon">
-                  {item.category === "CONSULTATION" ? (
-                    <Stethoscope size={18} />
-                  ) : item.category === "LABORATORY" ? (
-                    <TestTubes size={18} />
-                  ) : (
-                    <Pill size={18} />
-                  )}
-                </div>
-
-                <div className="workspace-history-content">
-                  <div className="workspace-history-title">
-                    <strong>{item.name}</strong>
-                    <span className="dosage-badge">{formatRwf(item.grossAmount)}</span>
-                  </div>
-
-                  <div className="workspace-history-meta">
-                    <span className="meta-tag">
-                      Insurance (85%): {formatRwf(item.insuranceAmount)}
-                    </span>
-                    <span className="qty-tag" style={{ color: "#c2410c", fontWeight: 700 }}>
-                      Patient Co-Pay: {formatRwf(item.patientAmount)}
-                    </span>
-                    <span>Status: Verified & Audited</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-    </AppLayout>
+    </div>
   );
 }
+
