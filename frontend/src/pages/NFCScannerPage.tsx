@@ -16,12 +16,6 @@ import { SOCKET_URL, getPatients } from "../services/api";
 
 const PENDING_CARD_KEY = "medcard_pending_card_uid";
 
-/*
-|--------------------------------------------------------------------------
-| TYPES
-|--------------------------------------------------------------------------
-*/
-
 interface IdentifiedPatient {
   id: string;
   patientNumber?: string;
@@ -62,12 +56,6 @@ interface IdentificationFailedEvent {
   [key: string]: unknown;
 }
 
-/*
-|--------------------------------------------------------------------------
-| STATUS
-|--------------------------------------------------------------------------
-*/
-
 type ScannerStatus =
   | "CONNECTING"
   | "READY"
@@ -106,7 +94,6 @@ function NFCScannerPage() {
   const [unregisteredCardUid, setUnregisteredCardUid] = useState("");
   const [demoPatients, setDemoPatients] = useState<IdentifiedPatient[]>(FALLBACK_DEMO_PATIENTS);
 
-  // Load dynamic demo patients if connected
   useEffect(() => {
     async function loadDemoPatients() {
       try {
@@ -122,17 +109,11 @@ function NFCScannerPage() {
           );
         }
       } catch {
-        // preserve fallback demo patients
       }
     }
     void loadDemoPatients();
   }, []);
 
-  /*
-  |--------------------------------------------------------------------------
-  | SOCKET.IO CONNECTION
-  |--------------------------------------------------------------------------
-  */
   useEffect(() => {
     const socket = io(SOCKET_URL, {
       transports: ["websocket"],
@@ -146,7 +127,6 @@ function NFCScannerPage() {
     };
 
     const handleConnectError = () => {
-      // Allow ready state for demo simulation even if socket server is starting
       setScannerStatus("READY");
       setStatusMessage("Ready for MedCard (Live & Demo Simulator Active)");
       setErrorMessage("");
@@ -267,109 +247,100 @@ function NFCScannerPage() {
         icon: <RefreshCw size={15} />,
       }}
     >
-      <div className="nfc-page" style={{ minHeight: "auto", padding: 0 }}>
-        {/* MAIN */}
-        <main className="nfc-scanner-content" style={{ padding: 0, margin: "0 auto" }}>
-          <div className="nfc-scanner-header">
-            <span className="eyebrow">PATIENT IDENTIFICATION</span>
-            <h1>Scan MedCard</h1>
-            <p>
-              Use the connected NFC reader or trigger an instant demo tap to
-              identify a patient.
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white border border-border rounded-2xl overflow-hidden">
+          <div className="p-8 text-center">
+            <span className="text-sm font-semibold text-teal">PATIENT IDENTIFICATION</span>
+            <h1 className="text-2xl font-bold text-navy mt-2 mb-2">Scan MedCard</h1>
+            <p className="text-body-text">
+              Use the connected NFC reader or trigger an instant demo tap to identify a patient.
             </p>
           </div>
 
-        {/* SCANNER CARD */}
-        <section className="scanner-card">
-          <div className="scanner-visual">
-            <div className="scanner-ring outer">
-              <div className="scanner-ring middle">
-                <div className="scanner-icon">
-                  {isConnecting || isIdentifying ? (
-                    <LoaderCircle size={42} className="spin" />
-                  ) : isSuccess ? (
-                    <CheckCircle2 size={42} />
-                  ) : isError ? (
-                    <AlertCircle size={42} />
-                  ) : (
-                    <Wifi size={42} />
-                  )}
+          <div className="bg-section-tint p-12 flex justify-center">
+            <div className="relative">
+              <div className="w-32 h-32 rounded-full border-4 border-teal/30 flex items-center justify-center">
+                <div className="w-24 h-24 rounded-full border-4 border-teal/50 flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-full bg-pale-cyan flex items-center justify-center">
+                    {isConnecting || isIdentifying ? (
+                      <LoaderCircle size={42} className="text-teal animate-spin" />
+                    ) : isSuccess ? (
+                      <CheckCircle2 size={42} className="text-green-600" />
+                    ) : isError ? (
+                      <AlertCircle size={42} className="text-red-600" />
+                    ) : (
+                      <Wifi size={42} className="text-teal" />
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* STATUS */}
-          <div className="scanner-status">
-            <span
-              className={`status-indicator ${
-                isError ? "error" : isSuccess ? "success" : ""
-              }`}
-            />
-
-            <strong>
-              {isConnecting && "Connecting..."}
-              {scannerStatus === "READY" && "Reader ready"}
-              {isIdentifying && "Card detected"}
-              {isSuccess && "Patient identified"}
-              {isError && "Identification notice"}
-            </strong>
-
-            <span>{statusMessage}</span>
+          <div className="p-6 border-t border-border">
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <span className={`w-3 h-3 rounded-full ${isError ? "bg-red-500" : isSuccess ? "bg-green-500" : "bg-teal"}`} />
+              <strong className="text-navy">
+                {isConnecting && "Connecting..."}
+                {scannerStatus === "READY" && "Reader ready"}
+                {isIdentifying && "Card detected"}
+                {isSuccess && "Patient identified"}
+                {isError && "Identification notice"}
+              </strong>
+            </div>
+            <p className="text-center text-body-text text-sm">{statusMessage}</p>
           </div>
 
-          {/* IDENTIFIED PATIENT */}
           {isSuccess && identifiedPatient && (
-            <div className="scanner-identified-patient">
-              <div>
-                <span className="eyebrow">PATIENT IDENTIFIED</span>
-                <h2>
-                  {identifiedPatient.firstName || ""}{" "}
-                  {identifiedPatient.lastName || ""}
-                </h2>
-
-                {identifiedPatient.patientNumber && (
-                  <p>
-                    Patient number:{" "}
-                    <strong>{identifiedPatient.patientNumber}</strong>
-                  </p>
-                )}
+            <div className="p-6 border-t border-border bg-green-50">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-semibold text-green-700">PATIENT IDENTIFIED</span>
+                  <h2 className="text-xl font-bold text-navy mt-1">
+                    {identifiedPatient.firstName || ""} {identifiedPatient.lastName || ""}
+                  </h2>
+                  {identifiedPatient.patientNumber && (
+                    <p className="text-body-text text-sm">
+                      Patient number: <strong>{identifiedPatient.patientNumber}</strong>
+                    </p>
+                  )}
+                </div>
+                <CheckCircle2 size={32} className="text-green-600" />
               </div>
-
-              <CheckCircle2 size={28} />
             </div>
           )}
 
-          {/* UNREGISTERED CARD NOTICE */}
           {unregisteredCardUid && (
-            <div className="unregistered-card-banner">
-              <div className="unregistered-card-text">
-                <strong>New MedCard Detected ({unregisteredCardUid})</strong>
-                <p>This card is not yet linked to any patient record.</p>
+            <div className="p-6 border-t border-border bg-yellow-50">
+              <div className="flex items-center justify-between">
+                <div>
+                  <strong className="text-navy">New MedCard Detected ({unregisteredCardUid})</strong>
+                  <p className="text-body-text text-sm">This card is not yet linked to any patient record.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRegisterUnlinkedCard}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-navy rounded-full hover:bg-mid-blue transition-colors"
+                >
+                  <UserPlus size={14} />
+                  <span>Register & Link Card</span>
+                </button>
               </div>
-              <button
-                type="button"
-                className="action-pill-btn primary small"
-                onClick={handleRegisterUnlinkedCard}
-              >
-                <UserPlus size={14} />
-                <span>Register & Link Card</span>
-              </button>
             </div>
           )}
 
-          {/* ERROR MESSAGE */}
           {isError && !unregisteredCardUid && (
-            <div className="scanner-error-message">
-              <AlertCircle size={18} />
-              <span>{errorMessage}</span>
+            <div className="p-6 border-t border-border bg-red-50">
+              <div className="flex items-center gap-3 text-red-700">
+                <AlertCircle size={18} />
+                <span className="text-sm">{errorMessage}</span>
+              </div>
             </div>
           )}
 
-          {/* INSTRUCTION */}
           {!isSuccess && !unregisteredCardUid && (
-            <div className="scanner-instruction">
-              <h2>
+            <div className="p-6 border-t border-border">
+              <h2 className="text-lg font-bold text-navy mb-2">
                 {isError
                   ? "Try another card"
                   : isConnecting
@@ -378,8 +349,7 @@ function NFCScannerPage() {
                   ? "Identifying card"
                   : "Tap patient's card on reader"}
               </h2>
-
-              <p>
+              <p className="text-body-text text-sm">
                 {isError
                   ? "Make sure the card is registered and try tapping it again."
                   : isConnecting
@@ -391,19 +361,19 @@ function NFCScannerPage() {
             </div>
           )}
 
-          {/* DEMO TAP FAST BUTTONS FOR PRESENTATION */}
           {!isSuccess && (
-            <div className="scanner-demo-taps-box">
-              <span className="demo-tap-label">
-                <Play size={11} /> Simulate NFC Card Tap for Presentation:
+            <div className="p-6 border-t border-border bg-section-tint">
+              <span className="text-sm font-semibold text-navy flex items-center gap-2 mb-4">
+                <Play size={11} />
+                Simulate NFC Card Tap for Presentation:
               </span>
-              <div className="demo-taps-buttons-row">
+              <div className="flex flex-wrap gap-3">
                 {demoPatients.map((dp) => (
                   <button
                     key={dp.id}
                     type="button"
-                    className="demo-tap-btn"
                     onClick={() => handleSimulateScan(dp)}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-navy border-2 border-navy rounded-full hover:bg-navy hover:text-white transition-colors"
                   >
                     <Wifi size={14} />
                     <span>
@@ -415,36 +385,35 @@ function NFCScannerPage() {
             </div>
           )}
 
-          {/* SECURITY MESSAGE */}
-          <div className="security-message">
-            <ShieldCheck size={17} />
+          <div className="p-6 border-t border-border flex items-center gap-3 text-body-text text-sm">
+            <ShieldCheck size={17} className="text-teal" />
             <span>
-              Patient information is encrypted with AES-256 and retrieved
-              securely from the Rwanda National Health Grid.
+              Patient information is encrypted with AES-256 and retrieved securely from the Rwanda National Health Grid.
             </span>
           </div>
-        </section>
+        </div>
 
-        {/* HELP / RESET */}
-        <div className="scanner-help">
+        <div className="mt-6 bg-white border border-border rounded-xl p-6 flex items-center justify-between">
           <div>
-            <strong>
+            <strong className="text-navy">
               {isError ? "Need to reset?" : "Hardware Diagnostics"}
             </strong>
-            <p>
+            <p className="text-body-text text-sm">
               {isError
                 ? "Click reset below to listen for new card taps."
                 : "ACR122U USB reader ready • WebSockets listening at 13.56 MHz."}
             </p>
           </div>
-
-          <button type="button" onClick={handleReset}>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-navy border-2 border-navy rounded-full hover:bg-navy hover:text-white transition-colors"
+          >
             <RefreshCw size={16} />
             {isError ? "Try again" : "Reset scanner"}
           </button>
         </div>
-      </main>
-    </div>
+      </div>
     </AppLayout>
   );
 }

@@ -6,9 +6,13 @@ import {
 } from "react-router-dom";
 
 import CompanyLandingPage from "./pages/CompanyLandingPage";
-import LandingPage from "./pages/LandingPage";
+import NFCLandingPage from "./pages/NFCLandingPage";
+import PatientVaultPage from "./pages/PatientVaultPage";
+import PatientVaultLoginPage from "./pages/PatientVaultLoginPage";
+import VaultPortalPage from "./pages/VaultPortalPage";
 import FacilityLoginPage from "./pages/FacilityLoginPage";
 import LoginPage from "./pages/LoginPage";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 import DashboardPage from "./pages/DashboardPage";
 import NFCScannerPage from "./pages/NFCScannerPage";
@@ -35,14 +39,29 @@ function App() {
         {/* =====================================================
             NFC CARD LANDING PAGE
         ====================================================== */}
-        <Route path="/nfc" element={<LandingPage />} />
+        <Route path="/nfc" element={<NFCLandingPage />} />
+
+        {/* =====================================================
+            PATIENT VAULT
+        ====================================================== */}
+        <Route path="/patient-vault" element={<PatientVaultPage />} />
+        <Route path="/patient-vault/login" element={<PatientVaultLoginPage />} />
+
+        {/* =====================================================
+            VAULT PORTAL
+        ====================================================== */}
+        <Route path="/vault-portal" element={<VaultPortalPage />} />
 
         {/* =====================================================
             PATIENT REGISTRATION
         ====================================================== */}
         <Route
           path="/register-patient"
-          element={<PatientRegistrationPage />}
+          element={
+            <ProtectedRoute>
+              <PatientRegistrationPage />
+            </ProtectedRoute>
+          }
         />
 
         {/* =====================================================
@@ -66,7 +85,11 @@ function App() {
         ====================================================== */}
         <Route
           path="/dashboard"
-          element={<DashboardPage />}
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
         />
 
         {/* =====================================================
@@ -74,7 +97,11 @@ function App() {
         ====================================================== */}
         <Route
           path="/nfc/scan"
-          element={<NFCScannerPage />}
+          element={
+            <ProtectedRoute>
+              <NFCScannerPage />
+            </ProtectedRoute>
+          }
         />
 
         {/* =====================================================
@@ -82,7 +109,11 @@ function App() {
         ====================================================== */}
         <Route
           path="/patients"
-          element={<PatientsPage />}
+          element={
+            <ProtectedRoute>
+              <PatientsPage />
+            </ProtectedRoute>
+          }
         />
 
         {/* =====================================================
@@ -90,7 +121,11 @@ function App() {
         ====================================================== */}
         <Route
           path="/patients/:patientId"
-          element={<PatientWorkspacePage />}
+          element={
+            <ProtectedRoute>
+              <PatientWorkspacePage />
+            </ProtectedRoute>
+          }
         />
 
         {/* =====================================================
@@ -98,7 +133,11 @@ function App() {
         ====================================================== */}
         <Route
           path="/appointments"
-          element={<AppointmentsPage />}
+          element={
+            <ProtectedRoute>
+              <AppointmentsPage />
+            </ProtectedRoute>
+          }
         />
 
         {/* =====================================================
@@ -106,7 +145,11 @@ function App() {
         ====================================================== */}
         <Route
           path="/medical-records"
-          element={<MedicalRecordsPage />}
+          element={
+            <ProtectedRoute>
+              <MedicalRecordsPage />
+            </ProtectedRoute>
+          }
         />
 
         {/* =====================================================
@@ -114,7 +157,11 @@ function App() {
         ====================================================== */}
         <Route
           path="/laboratory"
-          element={<LaboratoryWorkspacePage />}
+          element={
+            <ProtectedRoute>
+              <LaboratoryWorkspacePage />
+            </ProtectedRoute>
+          }
         />
 
         {/* =====================================================
@@ -122,7 +169,11 @@ function App() {
         ====================================================== */}
         <Route
           path="/pharmacy"
-          element={<PharmacyWorkspacePage />}
+          element={
+            <ProtectedRoute>
+              <PharmacyWorkspacePage />
+            </ProtectedRoute>
+          }
         />
 
         {/* =====================================================
@@ -130,7 +181,11 @@ function App() {
         ====================================================== */}
         <Route
           path="/payment"
-          element={<PaymentWorkspacePage />}
+          element={
+            <ProtectedRoute>
+              <PaymentWorkspacePage />
+            </ProtectedRoute>
+          }
         />
 
         {/* =====================================================
@@ -138,7 +193,11 @@ function App() {
         ====================================================== */}
         <Route
           path="/top-up"
-          element={<TopUpPage />}
+          element={
+            <ProtectedRoute>
+              <TopUpPage />
+            </ProtectedRoute>
+          }
         />
 
         {/* =====================================================
@@ -146,7 +205,11 @@ function App() {
         ====================================================== */}
         <Route
           path="/settings"
-          element={<SettingsPage />}
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
+            </ProtectedRoute>
+          }
         />
 
         {/* =====================================================

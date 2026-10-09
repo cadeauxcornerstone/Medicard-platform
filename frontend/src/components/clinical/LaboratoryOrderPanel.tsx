@@ -12,7 +12,7 @@ import {
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
-  "http://localhost:5000/api/v1";
+  "https://medicard-platform.onrender.com/api/v1";
 
 const DEVELOPMENT_USER_ID =
   import.meta.env.VITE_DEMO_USER_ID ||

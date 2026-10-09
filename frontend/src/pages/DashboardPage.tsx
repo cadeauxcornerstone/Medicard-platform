@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Users,
   Wifi,
-  CalendarDays,
-  FlaskConical,
-  Pill,
   ArrowRight,
   ShieldCheck,
   UserRoundPlus,
@@ -48,60 +44,29 @@ export default function DashboardPage() {
     return "Reception";
   });
 
-  /* ============================================================
-     RECEPTION WALLET TOP-UP
-     ============================================================ */
-
-  const [showWalletTopUp, setShowWalletTopUp] =
-    useState(false);
-
-  const [walletPatient, setWalletPatient] =
-    useState<any>(null);
-
-  const [wallet, setWallet] =
-    useState<WalletType | null>(null);
-
-  const [walletAmount, setWalletAmount] =
-    useState("");
-
-  const [walletLoading, setWalletLoading] =
-    useState(false);
-
-  const [walletProcessing, setWalletProcessing] =
-    useState(false);
-
-  const [walletError, setWalletError] =
-    useState("");
-
-  const [walletSuccess, setWalletSuccess] =
-    useState("");
-
-  /* ============================================================
-     KEEP ROLE SYNCED
-     ============================================================ */
+  const [showWalletTopUp, setShowWalletTopUp] = useState(false);
+  const [walletPatient, setWalletPatient] = useState<any>(null);
+  const [wallet, setWallet] = useState<WalletType | null>(null);
+  const [walletAmount, setWalletAmount] = useState("");
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletProcessing, setWalletProcessing] = useState(false);
+  const [walletError, setWalletError] = useState("");
+  const [walletSuccess, setWalletSuccess] = useState("");
 
   useEffect(() => {
-    const stored =
-      localStorage.getItem(CURRENT_ROLE_KEY);
+    const stored = localStorage.getItem(CURRENT_ROLE_KEY);
 
     if (stored) {
       setCurrentRole(stored as Role);
     }
   }, []);
 
-  /* ============================================================
-     LOAD PATIENT WALLET
-     ============================================================ */
-
-  const loadPatientWallet = async (
-    patientId: string
-  ) => {
+  const loadPatientWallet = async (patientId: string) => {
     try {
       setWalletLoading(true);
       setWalletError("");
 
-      const result =
-        await getWallet(patientId);
+      const result = await getWallet(patientId);
 
       setWallet(result);
     } catch (error: any) {
@@ -117,41 +82,27 @@ export default function DashboardPage() {
     }
   };
 
-  /* ============================================================
-     NFC IDENTIFICATION FOR WALLET TOP-UP
-     ============================================================ */
-
   useEffect(() => {
-    const handlePatientIdentified = (
-      data: any
-    ) => {
+    const handlePatientIdentified = (data: any) => {
       if (!showWalletTopUp) {
         return;
       }
 
-      const identifiedPatient =
-        data?.patient ||
-        data?.data?.patient;
+      const identifiedPatient = data?.patient || data?.data?.patient;
 
       if (!identifiedPatient?.id) {
         return;
       }
 
-      setWalletPatient(
-        identifiedPatient
-      );
+      setWalletPatient(identifiedPatient);
 
       setWalletError("");
       setWalletSuccess("");
 
-      loadPatientWallet(
-        identifiedPatient.id
-      );
+      loadPatientWallet(identifiedPatient.id);
     };
 
-    const handleIdentificationFailed = (
-      data: any
-    ) => {
+    const handleIdentificationFailed = (data: any) => {
       if (!showWalletTopUp) {
         return;
       }
@@ -188,10 +139,6 @@ export default function DashboardPage() {
     };
   }, [showWalletTopUp]);
 
-  /* ============================================================
-     TOP UP WALLET
-     ============================================================ */
-
   const handleWalletTopUp = async () => {
     if (!walletPatient) {
       setWalletError(
@@ -200,8 +147,7 @@ export default function DashboardPage() {
       return;
     }
 
-    const numericAmount =
-      Number(walletAmount);
+    const numericAmount = Number(walletAmount);
 
     if (
       !Number.isFinite(numericAmount) ||
@@ -218,15 +164,14 @@ export default function DashboardPage() {
       setWalletError("");
       setWalletSuccess("");
 
-      const result =
-        await topUpWallet(
-          walletPatient.id,
-          {
-            amount: numericAmount,
-            description:
-              "Reception wallet top-up",
-          }
-        );
+      const result = await topUpWallet(
+        walletPatient.id,
+        {
+          amount: numericAmount,
+          description:
+            "Reception wallet top-up",
+        }
+      );
 
       setWallet(result.wallet);
 
@@ -246,10 +191,6 @@ export default function DashboardPage() {
     }
   };
 
-  /* ============================================================
-     OPEN WALLET TOP-UP
-     ============================================================ */
-
   const openWalletTopUp = () => {
     setShowWalletTopUp(true);
     setWalletPatient(null);
@@ -258,10 +199,6 @@ export default function DashboardPage() {
     setWalletError("");
     setWalletSuccess("");
   };
-
-  /* ============================================================
-     CLOSE WALLET TOP-UP
-     ============================================================ */
 
   const closeWalletTopUp = () => {
     if (walletProcessing) {
@@ -278,9 +215,7 @@ export default function DashboardPage() {
 
   return (
     <AppLayout
-      pageTitle={`${currentRole} Command Center`}
-      pageSubtitle="Connected Healthcare Operations • Rwanda National Health Grid"
-
+      pageTitle={currentRole}
       actionButton={
         currentRole === "Reception"
           ? {
@@ -306,803 +241,312 @@ export default function DashboardPage() {
           : undefined
       }
     >
-      <div className="dashboard-content-wrapper">
-
-        {/* =====================================================
-            METRIC CARDS
-            ===================================================== */}
-
-        <div className="analytics-metrics-grid">
-
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div
-            className="metric-stat-card clickable"
+            className="bg-white border border-border rounded-lg p-3 cursor-pointer hover:border-teal transition-all"
             onClick={() =>
               navigate("/patients")
             }
           >
-            <div className="metric-data">
-              <span className="metric-label">
-                Registered Patients
-              </span>
-
-              <strong className="metric-value">
-                4,892
-              </strong>
-
-              <small className="metric-trend positive">
-                +14 enrolled today
-              </small>
-            </div>
+            <span className="text-xs font-medium text-body-text">Patients</span>
+            <strong className="block text-xl font-bold text-navy">4,892</strong>
+            <small className="text-xs text-teal">+14 today</small>
           </div>
 
-
           <div
-            className="metric-stat-card clickable"
+            className="bg-white border border-border rounded-lg p-3 cursor-pointer hover:border-teal transition-all"
             onClick={() =>
               navigate("/nfc")
             }
           >
-            <div className="metric-data">
-              <span className="metric-label">
-                MedCard NFC Scans
-              </span>
-
-              <strong className="metric-value">
-                128
-              </strong>
-
-              <small className="metric-trend highlight">
-                Instant Tap ID
-              </small>
-            </div>
+            <span className="text-xs font-medium text-body-text">NFC Scans</span>
+            <strong className="block text-xl font-bold text-navy">128</strong>
+            <small className="text-xs text-teal">Live</small>
           </div>
 
-
           <div
-            className="metric-stat-card clickable"
+            className="bg-white border border-border rounded-lg p-3 cursor-pointer hover:border-teal transition-all"
             onClick={() =>
               navigate("/appointments")
             }
           >
-            <div className="metric-data">
-              <span className="metric-label">
-                Today's Appointments
-              </span>
-
-              <strong className="metric-value">
-                46
-              </strong>
-
-              <small className="metric-trend positive">
-                8 currently waiting
-              </small>
-            </div>
+            <span className="text-xs font-medium text-body-text">Appointments</span>
+            <strong className="block text-xl font-bold text-navy">46</strong>
+            <small className="text-xs text-teal">8 waiting</small>
           </div>
 
-
           <div
-            className="metric-stat-card clickable"
+            className="bg-white border border-border rounded-lg p-3 cursor-pointer hover:border-teal transition-all"
             onClick={() =>
               navigate("/payment")
             }
           >
-            <div className="metric-data">
-              <span className="metric-label">
-                Settled Claims
-              </span>
-
-              <strong className="metric-value">
-                RWF 4.2M
-              </strong>
-
-              <small className="metric-trend positive">
-                100% digital sync
-              </small>
-            </div>
+            <span className="text-xs font-medium text-body-text">Claims</span>
+            <strong className="block text-xl font-bold text-navy">4.2M</strong>
+            <small className="text-xs text-teal">RWF</small>
           </div>
-
         </div>
 
-
-        {/* =====================================================
-            PATIENT IDENTIFICATION
-            ===================================================== */}
-
-        <div className="dashboard-identification-section">
+        <div className="bg-white border border-border rounded-lg overflow-hidden">
           <PatientIdentificationPanel />
         </div>
 
-
-        {/* =====================================================
-            QUICK ACTIONS
-            ===================================================== */}
-
-        <div className="dashboard-quick-actions-bar">
-
-          <span className="quick-actions-title">
-            Clinical Stations Quick-Access:
-          </span>
-
-          <div className="quick-actions-grid">
-
-            <button
-              type="button"
-              className="quick-action-tile"
-              onClick={() =>
-                navigate("/patients")
-              }
-            >
-              <div className="tile-icon green">
-                <Users size={16} />
+        <div className="grid lg:grid-cols-2 gap-4">
+          <div className="bg-white border border-border rounded-2xl overflow-hidden">
+            <div className="p-6 border-b border-border flex items-center justify-between">
+              <div>
+                <span className="text-sm font-semibold text-teal">CLINIC DISPATCH</span>
+                <h3 className="text-lg font-bold text-navy">Live Lobby Queue</h3>
               </div>
-
-              <div className="tile-text">
-                <strong>
-                  Patient Registry
-                </strong>
-
-                <small>
-                  4,892 active files
-                </small>
-              </div>
-
-              <ArrowRight
-                size={14}
-                className="tile-arrow"
-              />
-            </button>
-
-
-            <button
-              type="button"
-              className="quick-action-tile"
-              onClick={() =>
-                navigate("/appointments")
-              }
-            >
-              <div className="tile-icon green">
-                <CalendarDays size={16} />
-              </div>
-
-              <div className="tile-text">
-                <strong>
-                  Clinic Queue
-                </strong>
-
-                <small>
-                  8 waiting in lobby
-                </small>
-              </div>
-
-              <ArrowRight
-                size={14}
-                className="tile-arrow"
-              />
-            </button>
-
-
-            <button
-              type="button"
-              className="quick-action-tile"
-              onClick={() =>
-                navigate("/laboratory")
-              }
-            >
-              <div className="tile-icon green">
-                <FlaskConical size={16} />
-              </div>
-
-              <div className="tile-text">
-                <strong>
-                  Laboratory Portal
-                </strong>
-
-                <small>
-                  4 orders pending
-                </small>
-              </div>
-
-              <ArrowRight
-                size={14}
-                className="tile-arrow"
-              />
-            </button>
-
-
-            <button
-              type="button"
-              className="quick-action-tile"
-              onClick={() =>
-                navigate("/pharmacy")
-              }
-            >
-              <div className="tile-icon green">
-                <Pill size={16} />
-              </div>
-
-              <div className="tile-text">
-                <strong>
-                  E-Pharmacy
-                </strong>
-
-                <small>
-                  Rx dispensing station
-                </small>
-              </div>
-
-              <ArrowRight
-                size={14}
-                className="tile-arrow"
-              />
-            </button>
-
-          </div>
-        </div>
-
-
-        {/* =====================================================
-            TWO PANEL GRID
-            ===================================================== */}
-
-        <div className="dashboard-two-panel-grid">
-
-          {/* LIVE QUEUE */}
-
-          <div className="dashboard-panel-card">
-
-            <div className="panel-card-header">
-
-              <div className="panel-header-title">
-
-                <span className="eyebrow">
-                  CLINIC DISPATCH
-                </span>
-
-                <h3>
-                  Live Lobby Queue
-                </h3>
-
-              </div>
-
               <button
                 type="button"
-                className="action-pill-btn secondary small"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-navy border-2 border-navy rounded-full hover:bg-navy hover:text-white transition-colors"
                 onClick={() =>
                   navigate("/appointments")
                 }
               >
-                <span>
-                  View Full Schedule
-                </span>
-
+                <span>View Full Schedule</span>
                 <ArrowRight size={14} />
               </button>
-
             </div>
 
-
-            <div className="queue-list-container">
-
+            <div className="divide-y divide-border">
               <div
-                className="queue-card-item"
+                className="p-4 flex items-center gap-4 cursor-pointer hover:bg-section-tint transition-colors"
                 onClick={() =>
                   navigate(
                     "/patients/ac844b2b-cc1b-45a4-9404-e059fdd6df0b"
                   )
                 }
               >
-                <div className="queue-patient-avatar">
-                  AM
+                <div className="w-12 h-12 bg-pale-cyan rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-navy font-bold text-sm">AM</span>
                 </div>
-
-                <div className="queue-item-body">
-
-                  <div className="queue-patient-top">
-                    <strong>
-                      Alice Mutoni
-                    </strong>
-
-                    <span className="queue-status in-consult">
-                      In Consultation
-                    </span>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <strong className="text-navy">Alice Mutoni</strong>
+                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">In Consultation</span>
                   </div>
-
-                  <div className="queue-sub">
-                    <span>
-                      MC-2026-0811
-                    </span>
-
+                  <div className="text-sm text-body-text flex items-center gap-2">
+                    <span>MC-2026-0811</span>
                     <span>•</span>
-
-                    <span>
-                      General OPD (Dr. Solange)
-                    </span>
-
+                    <span>General OPD (Dr. Solange)</span>
                     <span>•</span>
-
-                    <span>
-                      09:15 AM
-                    </span>
+                    <span>09:15 AM</span>
                   </div>
-
                 </div>
               </div>
 
-
               <div
-                className="queue-card-item"
+                className="p-4 flex items-center gap-4 cursor-pointer hover:bg-section-tint transition-colors"
                 onClick={() =>
                   navigate(
                     "/patients/patient-002"
                   )
                 }
               >
-                <div className="queue-patient-avatar">
-                  JR
+                <div className="w-12 h-12 bg-pale-cyan rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-navy font-bold text-sm">JR</span>
                 </div>
-
-                <div className="queue-item-body">
-
-                  <div className="queue-patient-top">
-                    <strong>
-                      Jean Rukundo
-                    </strong>
-
-                    <span className="queue-status waiting">
-                      Waiting (12m)
-                    </span>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <strong className="text-navy">Jean Rukundo</strong>
+                    <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-semibold rounded-full">Waiting (12m)</span>
                   </div>
-
-                  <div className="queue-sub">
-                    <span>
-                      MC-2026-0492
-                    </span>
-
+                  <div className="text-sm text-body-text flex items-center gap-2">
+                    <span>MC-2026-0492</span>
                     <span>•</span>
-
-                    <span>
-                      Cardiology (Dr. Kagame)
-                    </span>
-
+                    <span>Cardiology (Dr. Kagame)</span>
                     <span>•</span>
-
-                    <span>
-                      10:30 AM
-                    </span>
+                    <span>10:30 AM</span>
                   </div>
-
                 </div>
               </div>
 
-
               <div
-                className="queue-card-item"
+                className="p-4 flex items-center gap-4 cursor-pointer hover:bg-section-tint transition-colors"
                 onClick={() =>
                   navigate(
                     "/patients/patient-003"
                   )
                 }
               >
-                <div className="queue-patient-avatar">
-                  KU
+                <div className="w-12 h-12 bg-pale-cyan rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-navy font-bold text-sm">KU</span>
                 </div>
-
-                <div className="queue-item-body">
-
-                  <div className="queue-patient-top">
-                    <strong>
-                      Keza Uwase
-                    </strong>
-
-                    <span className="queue-status waiting">
-                      Waiting (5m)
-                    </span>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <strong className="text-navy">Keza Uwase</strong>
+                    <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-semibold rounded-full">Waiting (5m)</span>
                   </div>
-
-                  <div className="queue-sub">
-                    <span>
-                      MC-2026-1108
-                    </span>
-
+                  <div className="text-sm text-body-text flex items-center gap-2">
+                    <span>MC-2026-1108</span>
                     <span>•</span>
-
-                    <span>
-                      Laboratory / Diagnostic
-                    </span>
-
+                    <span>Laboratory / Diagnostic</span>
                     <span>•</span>
-
-                    <span>
-                      11:00 AM
-                    </span>
+                    <span>11:00 AM</span>
                   </div>
-
                 </div>
               </div>
-
             </div>
           </div>
 
-
-          {/* NFC FEED */}
-
-          <div className="dashboard-panel-card">
-
-            <div className="panel-card-header">
-
-              <div className="panel-header-title">
-
-                <span className="eyebrow">
-                  NFC REAL-TIME STREAM
-                </span>
-
-                <h3>
-                  Recent Card Activity
-                </h3>
-
+          <div className="bg-white border border-border rounded-2xl overflow-hidden">
+            <div className="p-6 border-b border-border flex items-center justify-between">
+              <div>
+                <span className="text-sm font-semibold text-teal">NFC REAL-TIME STREAM</span>
+                <h3 className="text-lg font-bold text-navy">Recent Card Activity</h3>
               </div>
-
               <button
                 type="button"
-                className="action-pill-btn secondary small"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-navy border-2 border-navy rounded-full hover:bg-navy hover:text-white transition-colors"
                 onClick={() =>
                   navigate("/nfc")
                 }
               >
                 <Wifi size={14} />
-
-                <span>
-                  Open Scanner
-                </span>
+                <span>Open Scanner</span>
               </button>
-
             </div>
 
-
-            <div className="nfc-taps-feed-container">
-
-              <div className="tap-feed-item success">
-
-                <div className="tap-feed-icon">
-                  <Wifi size={16} />
+            <div className="divide-y divide-border">
+              <div className="p-4 flex items-start gap-3">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Wifi size={16} className="text-green-600" />
                 </div>
-
-                <div className="tap-feed-body">
-
-                  <div className="tap-feed-top">
-
-                    <strong>
-                      Alice Mutoni (04:A2:8B:1F:90:3C)
-                    </strong>
-
-                    <small>
-                      2 mins ago
-                    </small>
-
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <strong className="text-navy text-sm">Alice Mutoni (04:A2:8B:1F:90:3C)</strong>
+                    <small className="text-body-text text-xs">2 mins ago</small>
                   </div>
-
-                  <p>
-                    Contactless Tap identified at Reception Station 1
-                  </p>
-
+                  <p className="text-body-text text-sm">Contactless Tap identified at Reception Station 1</p>
                 </div>
               </div>
 
-
-              <div className="tap-feed-item success">
-
-                <div className="tap-feed-icon">
-                  <Wifi size={16} />
+              <div className="p-4 flex items-start gap-3">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Wifi size={16} className="text-green-600" />
                 </div>
-
-                <div className="tap-feed-body">
-
-                  <div className="tap-feed-top">
-
-                    <strong>
-                      Jean Rukundo (04:C5:1E:44:88:9A)
-                    </strong>
-
-                    <small>
-                      18 mins ago
-                    </small>
-
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <strong className="text-navy text-sm">Jean Rukundo (04:C5:1E:44:88:9A)</strong>
+                    <small className="text-body-text text-xs">18 mins ago</small>
                   </div>
-
-                  <p>
-                    Co-pay payment verified via MedCard Wallet
-                  </p>
-
+                  <p className="text-body-text text-sm">Co-pay payment verified via MedCard Wallet</p>
                 </div>
               </div>
 
-
-              <div className="tap-feed-item info">
-
-                <div className="tap-feed-icon">
-                  <ShieldCheck size={16} />
+              <div className="p-4 flex items-start gap-3">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <ShieldCheck size={16} className="text-blue-600" />
                 </div>
-
-                <div className="tap-feed-body">
-
-                  <div className="tap-feed-top">
-
-                    <strong>
-                      MoH RSSB Gateway Sync
-                    </strong>
-
-                    <small>
-                      35 mins ago
-                    </small>
-
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <strong className="text-navy text-sm">MoH RSSB Gateway Sync</strong>
+                    <small className="text-body-text text-xs">35 mins ago</small>
                   </div>
-
-                  <p>
-                    Automatic eligibility batch sync confirmed
-                  </p>
-
+                  <p className="text-body-text text-sm">Automatic eligibility batch sync confirmed</p>
                 </div>
               </div>
-
             </div>
           </div>
-
         </div>
-
       </div>
 
-
-      {/* =========================================================
-          RECEPTION WALLET TOP-UP MODAL
-          ========================================================= */}
-
       {showWalletTopUp && (
-
-        <div className="wallet-topup-overlay">
-
-          <div className="wallet-topup-modal">
-
-            <div className="wallet-topup-header">
-
-              <div>
-
-                <span className="eyebrow">
-                  RECEPTION WALLET
-                </span>
-
-                <h2>
-                  Top Up MedCard Wallet
-                </h2>
-
-                <p>
-                  Tap the patient's MedCard to
-                  identify their wallet.
-                </p>
-
-              </div>
-
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-navy">Top Up Patient Wallet</h2>
               <button
                 type="button"
-                className="wallet-topup-close"
                 onClick={closeWalletTopUp}
-                aria-label="Close wallet top up"
+                className="p-2 hover:bg-section-tint rounded-full transition-colors"
+                disabled={walletProcessing}
               >
-                <X size={20} />
+                <X size={20} className="text-body-text" />
               </button>
-
             </div>
 
+            <div className="mb-6">
+              <p className="text-sm text-body-text mb-4">Tap the patient's MedCard to identify the patient.</p>
+              <PatientIdentificationPanel />
+            </div>
 
-            {!walletPatient ? (
-
-              <div className="wallet-topup-waiting">
-
-                <div className="wallet-topup-icon">
-                  <Wifi size={30} />
-                </div>
-
-                <strong>
-                  Waiting for MedCard
-                </strong>
-
-                <span>
-                  Ask the patient to tap their
-                  MedCard on the NFC reader.
-                </span>
-
-              </div>
-
-            ) : (
-
-              <>
-
-                <div className="wallet-topup-identified">
-
-                  <div className="wallet-topup-avatar">
-
-                    {walletPatient.firstName
-                      ?.charAt(0)
-                      .toUpperCase()}
-
+            {walletPatient && (
+              <div className="space-y-4">
+                <div className="bg-section-tint rounded-xl p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 bg-pale-cyan rounded-full flex items-center justify-center">
+                      <span className="text-navy font-bold text-sm">
+                        {walletPatient.firstName?.[0]}{walletPatient.lastName?.[0]}
+                      </span>
+                    </div>
+                    <div>
+                      <strong className="text-navy">{walletPatient.firstName} {walletPatient.lastName}</strong>
+                      <p className="text-sm text-body-text">{walletPatient.medCardId}</p>
+                    </div>
                   </div>
-
-                  <div>
-
-                    <span>
-                      Patient identified
-                    </span>
-
-                    <strong>
-                      {walletPatient.firstName}{" "}
-                      {walletPatient.lastName}
-                    </strong>
-
-                    <small>
-                      {walletPatient.patientNumber}
-                    </small>
-
-                  </div>
-
-                </div>
-
-
-                <div className="wallet-topup-balance">
-
-                  <span>
-                    Current wallet balance
-                  </span>
 
                   {walletLoading ? (
-
-                    <LoaderCircle
-                      size={22}
-                      className="payment-spin"
-                    />
-
-                  ) : (
-
-                    <strong>
-                      {wallet
-                        ? Number(
-                            wallet.balance
-                          ).toLocaleString()
-                        : "0"}{" "}
-                      RWF
-                    </strong>
-
-                  )}
-
+                    <div className="flex items-center gap-2 text-body-text text-sm">
+                      <LoaderCircle size={16} className="animate-spin" />
+                      <span>Loading wallet...</span>
+                    </div>
+                  ) : wallet ? (
+                    <div className="text-navy font-bold">
+                      Current Balance: {wallet.balance.toLocaleString()} RWF
+                    </div>
+                  ) : null}
                 </div>
 
-
-                <div className="wallet-topup-field">
-
-                  <label>
-                    Amount to add
-                  </label>
-
-                  <div className="wallet-topup-input">
-
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="Enter amount"
-                      value={walletAmount}
-                      onChange={(event) =>
-                        setWalletAmount(
-                          event.target.value
-                        )
-                      }
-                      disabled={
-                        walletProcessing
-                      }
-                    />
-
-                    <span>
-                      RWF
-                    </span>
-
-                  </div>
-
+                <div>
+                  <label className="block text-sm font-semibold text-navy mb-2">Top-up Amount (RWF)</label>
+                  <input
+                    type="number"
+                    value={walletAmount}
+                    onChange={(e) => setWalletAmount(e.target.value)}
+                    placeholder="Enter amount"
+                    className="w-full px-4 py-3 border border-border rounded-xl bg-white text-navy focus:outline-none focus:ring-2 focus:ring-teal focus:ring-offset-2"
+                    disabled={walletProcessing}
+                  />
                 </div>
-
-
-                <div className="wallet-quick-amounts">
-
-                  {[5000, 10000, 20000, 50000].map(
-                    (value) => (
-
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() =>
-                          setWalletAmount(
-                            String(value)
-                          )
-                        }
-                        disabled={
-                          walletProcessing
-                        }
-                      >
-                        {value.toLocaleString()}
-                      </button>
-
-                    )
-                  )}
-
-                </div>
-
 
                 {walletError && (
-
-                  <div className="wallet-topup-error">
-                    {walletError}
+                  <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                    <ShieldCheck size={16} />
+                    <span>{walletError}</span>
                   </div>
-
                 )}
-
 
                 {walletSuccess && (
-
-                  <div className="wallet-topup-success">
-
-                    <CheckCircle2 size={18} />
-
-                    <span>
-                      {walletSuccess}
-                    </span>
-
+                  <div className="flex items-center gap-2 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm">
+                    <CheckCircle2 size={16} />
+                    <span>{walletSuccess}</span>
                   </div>
-
                 )}
-
 
                 <button
                   type="button"
-                  className="wallet-topup-submit"
-                  onClick={
-                    handleWalletTopUp
-                  }
-                  disabled={
-                    walletProcessing ||
-                    walletLoading ||
-                    !walletAmount
-                  }
+                  onClick={handleWalletTopUp}
+                  disabled={walletProcessing || walletLoading}
+                  className="w-full inline-flex items-center justify-center h-12 px-6 text-base font-semibold text-white bg-navy rounded-full hover:bg-mid-blue transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-
                   {walletProcessing ? (
-
                     <>
-                      <LoaderCircle
-                        size={18}
-                        className="payment-spin"
-                      />
-
+                      <LoaderCircle size={18} className="animate-spin mr-2" />
                       Processing...
                     </>
-
                   ) : (
-
-                    <>
-                      <Wallet size={18} />
-
-                      Top Up Wallet
-                    </>
-
+                    "Add Funds"
                   )}
-
                 </button>
-
-              </>
-
+              </div>
             )}
-
           </div>
-
         </div>
-
       )}
-
     </AppLayout>
   );
 }

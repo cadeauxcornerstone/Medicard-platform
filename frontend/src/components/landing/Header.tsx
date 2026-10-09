@@ -11,9 +11,9 @@ export function Header() {
         <div className="flex items-center justify-between h-full">
           <a href="/" className="flex items-center gap-3">
             <img
-              src="/favicon.svg"
+              src="/medcard-logo.svg"
               alt="MedCard"
-              className="h-8 w-8"
+              className="h-8 w-auto"
             />
             <div className="flex flex-col">
               <span className="text-navy font-bold text-lg leading-none">MedCard</span>

@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import AppLayout from "../components/layout/AppLayout";
 
-const API_URL = "http://localhost:5000/api/v1";
+const API_URL = import.meta.env.VITE_API_URL || "https://medicard-platform.onrender.com/api/v1";
 const DEVELOPMENT_FACILITY_ID = "9e268cfd-1e17-47cf-aadb-be42c58ad79f";
 const DEVELOPMENT_USER_ID = "ac844b2b-cc1b-45a4-9404-e059fdd6df0b";
 

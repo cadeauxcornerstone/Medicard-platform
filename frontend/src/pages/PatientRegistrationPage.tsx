@@ -1,74 +1,25 @@
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  useEffect,
-  useState,
-} from "react";
-
-import type {
-  FormEvent,
-} from "react";
-
-import {
-  Activity,
   ArrowLeft,
-  CalendarDays,
   CheckCircle2,
   CreditCard,
-  Mail,
-  Phone,
-  ShieldCheck,
-  UserRound,
   UserRoundPlus,
   LoaderCircle,
   AlertCircle,
   Wifi,
-  RefreshCw,
 } from "lucide-react";
-
-import {
-  useNavigate,
-} from "react-router-dom";
-
 import axios from "axios";
-
 import { io } from "socket.io-client";
+import AppLayout from "../components/layout/AppLayout";
 
+const API_URL = import.meta.env.VITE_API_URL || "https://medicard-platform.onrender.com/api/v1";
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "https://medicard-platform.onrender.com";
+const PENDING_CARD_KEY = "medcard_pending_card_uid";
 
-/*
-|--------------------------------------------------------------------------
-| CONFIGURATION
-|--------------------------------------------------------------------------
-*/
-
-const API_URL =
-  "http://localhost:5000/api/v1";
-
-const SOCKET_URL =
-  "http://localhost:5000";
-
-const PENDING_CARD_KEY =
-  "medcard_pending_card_uid";
-
-
-/*
-|--------------------------------------------------------------------------
-| TYPES
-|--------------------------------------------------------------------------
-*/
-
-type Gender =
-  | "MALE"
-  | "FEMALE"
-  | "OTHER"
-  | "UNKNOWN";
-
-
-type CardStatus =
-  | "WAITING"
-  | "CHECKING"
-  | "AVAILABLE"
-  | "DUPLICATE"
-  | "ERROR";
-
+type Gender = "MALE" | "FEMALE" | "OTHER" | "UNKNOWN";
+type CardStatus = "WAITING" | "CHECKING" | "AVAILABLE" | "DUPLICATE" | "ERROR";
 
 interface PatientForm {
   firstName: string;
@@ -79,1943 +30,367 @@ interface PatientForm {
   email: string;
 }
 
-
-interface CreatedPatient {
-  id: string;
-  patientNumber?: string;
-  firstName: string;
-  lastName: string;
-}
-
-
-interface PatientIdentifiedEvent {
-  success: boolean;
-  message?: string;
-
-  data?: {
-    card?: {
-      id?: string;
-      cardUid?: string;
-      status?: string;
-    };
-
-    patient?: {
-      id?: string;
-      patientNumber?: string;
-      firstName?: string;
-      lastName?: string;
-    };
-
-    [key: string]: unknown;
-  };
-}
-
-
-interface IdentificationFailedEvent {
-  success: boolean;
-  code?: string;
-  message?: string;
-  cardUid?: string;
-
-  data?: {
-    cardUid?: string;
-    [key: string]: unknown;
-  };
-
-  [key: string]: unknown;
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| PAGE
-|--------------------------------------------------------------------------
-*/
-
-function PatientRegistrationPage() {
-
+export default function PatientRegistrationPage() {
   const navigate = useNavigate();
 
+  const [cardUid, setCardUid] = useState("");
+  const [cardStatus, setCardStatus] = useState<CardStatus>("WAITING");
+  const [cardMessage, setCardMessage] = useState("Place MedCard on reader");
+  const [form, setForm] = useState<PatientForm>({
+    firstName: "",
+    lastName: "",
+    dateOfBirth: "",
+    gender: "UNKNOWN",
+    phone: "",
+    email: "",
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  /*
-  |--------------------------------------------------------------------------
-  | CARD STATE
-  |--------------------------------------------------------------------------
-  */
-
-  const [cardUid, setCardUid] =
-    useState("");
-
-
-  const [cardStatus, setCardStatus] =
-    useState<CardStatus>(
-      "WAITING"
-    );
-
-
-  const [cardMessage, setCardMessage] =
-    useState(
-      "Place the patient's MedCard on the NFC reader."
-    );
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | FORM
-  |--------------------------------------------------------------------------
-  */
-
-  const [form, setForm] =
-    useState<PatientForm>({
-      firstName: "",
-      lastName: "",
-      dateOfBirth: "",
-      gender: "UNKNOWN",
-      phone: "",
-      email: "",
-    });
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | SUBMISSION STATE
-  |--------------------------------------------------------------------------
-  */
-
-  const [submitting, setSubmitting] =
-    useState(false);
-
-
-  const [success, setSuccess] =
-    useState(false);
-
-
-  const [errorMessage, setErrorMessage] =
-    useState("");
-
-
-  const [createdPatient, setCreatedPatient] =
-    useState<CreatedPatient | null>(
-      null
-    );
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | CHECK CARD DUPLICATE
-  |--------------------------------------------------------------------------
-  */
-
-  const checkCardAvailability = async (
-    uid: string
-  ) => {
-
-    const normalizedUid =
-      uid.trim();
-
-
+  const checkCardAvailability = async (uid: string) => {
+    const normalizedUid = uid.trim();
     if (!normalizedUid) {
-
-      setCardStatus(
-        "ERROR"
-      );
-
-      setCardMessage(
-        "The NFC reader returned an empty card ID."
-      );
-
+      setCardStatus("ERROR");
+      setCardMessage("Empty card ID returned");
       return false;
     }
 
-
-    setCardStatus(
-      "CHECKING"
-    );
-
-
-    setCardMessage(
-      "Checking whether this MedCard is already registered..."
-    );
-
-
+    setCardStatus("CHECKING");
+    setCardMessage("Checking card availability...");
     setErrorMessage("");
 
-
     try {
-
-      /*
-      |--------------------------------------------------------------------------
-      | Existing card lookup
-      |--------------------------------------------------------------------------
-      */
-
-      const response =
-        await axios.get(
-          `${API_URL}/cards/${encodeURIComponent(
-            normalizedUid
-          )}`
-        );
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | CARD EXISTS
-      |--------------------------------------------------------------------------
-      */
-
-      if (
-        response.status >= 200 &&
-        response.status < 300
-      ) {
-
-        const existingPatient =
-          response.data?.data?.patient;
-
-
-        setCardStatus(
-          "DUPLICATE"
-        );
-
-
-        setCardMessage(
-          existingPatient
-            ? `This card is already linked to ${existingPatient.firstName || ""} ${existingPatient.lastName || ""}.`
-            : "This MedCard is already registered."
-        );
-
-
-        setErrorMessage(
-          "This physical MedCard cannot be assigned to another patient."
-        );
-
-
+      const response = await axios.get(`${API_URL}/cards/${encodeURIComponent(normalizedUid)}`);
+      if (response.status >= 200 && response.status < 300) {
+        setCardStatus("DUPLICATE");
+        setCardMessage("Card already registered");
+        setErrorMessage("This card is already assigned to a patient");
         return false;
       }
-
-
       return false;
-
     } catch (error: any) {
-
-      /*
-      |--------------------------------------------------------------------------
-      | 404 = CARD AVAILABLE
-      |--------------------------------------------------------------------------
-      */
-
-      if (
-        error?.response?.status ===
-        404
-      ) {
-
-        setCardStatus(
-          "AVAILABLE"
-        );
-
-
-        setCardMessage(
-          "New MedCard detected. It is available to be linked."
-        );
-
-
+      if (error?.response?.status === 404) {
+        setCardStatus("AVAILABLE");
+        setCardMessage("Card available for registration");
         setErrorMessage("");
-
-
         return true;
       }
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | Other API error
-      |--------------------------------------------------------------------------
-      */
-
-      console.error(
-        "❌ Card availability check failed:",
-        error
-      );
-
-
-      setCardStatus(
-        "ERROR"
-      );
-
-
-      setCardMessage(
-        "Unable to verify this MedCard."
-      );
-
-
-      setErrorMessage(
-        error?.response?.data?.message ||
-        "Unable to verify the card. Please try again."
-      );
-
-
+      setCardStatus("ERROR");
+      setCardMessage("Unable to verify card");
+      setErrorMessage(error?.response?.data?.message || "Card verification failed");
       return false;
     }
-
   };
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | NFC SOCKET
-  |--------------------------------------------------------------------------
-  */
 
   useEffect(() => {
-
-    console.log(
-      "📡 Starting registration NFC listener..."
-    );
-
-
-    const socket =
-      io(
-        SOCKET_URL,
-        {
-          transports: ["websocket"],
-        }
-      );
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | SOCKET CONNECT
-    |--------------------------------------------------------------------------
-    */
+    const socket = io(SOCKET_URL, { transports: ["websocket"] });
 
     const handleConnect = () => {
-
-      console.log(
-        "🔌 Registration NFC socket connected:",
-        socket.id
-      );
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | If a UID was already saved by the previous scanner flow,
-      | check it automatically.
-      |--------------------------------------------------------------------------
-      */
-
-      const pendingUid =
-        sessionStorage.getItem(
-          PENDING_CARD_KEY
-        );
-
-
+      const pendingUid = sessionStorage.getItem(PENDING_CARD_KEY);
       if (pendingUid) {
-
-        console.log(
-          "💳 Found pending card UID:",
-          pendingUid
-        );
-
-
-        setCardUid(
-          pendingUid
-        );
-
-
-        void checkCardAvailability(
-          pendingUid
-        );
-
+        setCardUid(pendingUid);
+        void checkCardAvailability(pendingUid);
       }
-
     };
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | SOCKET CONNECTION ERROR
-    |--------------------------------------------------------------------------
-    */
-
-    const handleConnectError = (
-      error: Error
-    ) => {
-
-      console.error(
-        "❌ Registration NFC socket error:",
-        error
-      );
-
-
-      setCardStatus(
-        "ERROR"
-      );
-
-
-      setCardMessage(
-        "Unable to connect to the MedCard reader service."
-      );
-
+    const handleConnectError = () => {
+      setCardStatus("ERROR");
+      setCardMessage("Unable to connect to reader service");
     };
 
+    const handlePatientIdentified = (event: any) => {
+      const uid = event?.data?.card?.cardUid || "";
+      if (!uid) return;
+      setCardUid(uid);
+      setCardStatus("DUPLICATE");
+      setCardMessage("Card already registered");
+      setErrorMessage("This card is already assigned to a patient");
+      sessionStorage.removeItem(PENDING_CARD_KEY);
+    };
 
-    /*
-    |--------------------------------------------------------------------------
-    | REGISTERED CARD
-    |--------------------------------------------------------------------------
-    |
-    | If an already registered card is scanned while on this page,
-    | patient:identified will be emitted.
-    |
-    | We treat that as a duplicate.
-    |
-    */
-
-    const handlePatientIdentified = (
-      event: PatientIdentifiedEvent
-    ) => {
-
-      console.log(
-        "⚠️ Registered card detected on registration page:",
-        event
-      );
-
-
-      const uid =
-        event.data?.card?.cardUid ||
-        "";
-
-
+    const handleIdentificationFailed = (event: any) => {
+      if (event.code !== "CARD_NOT_REGISTERED") return;
+      const uid = event.cardUid || event.data?.cardUid || "";
       if (!uid) {
-
-        /*
-        |--------------------------------------------------------------------------
-        | If the event does not contain the UID,
-        | don't destroy the current registration state.
-        |--------------------------------------------------------------------------
-        */
-
+        setCardStatus("ERROR");
+        setCardMessage("No card ID provided");
         return;
       }
-
-
-      setCardUid(
-        uid
-      );
-
-
-      setCardStatus(
-        "DUPLICATE"
-      );
-
-
-      const existingPatient =
-        event.data?.patient;
-
-
-      if (existingPatient) {
-
-        setCardMessage(
-          `This card is already linked to ${existingPatient.firstName || ""} ${existingPatient.lastName || ""}.`
-        );
-
-      } else {
-
-        setCardMessage(
-          "This MedCard is already registered."
-        );
-
-      }
-
-
-      setErrorMessage(
-        "This physical MedCard cannot be assigned to another patient."
-      );
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | Make sure this UID isn't accidentally retained
-      | as a new registration card.
-      |--------------------------------------------------------------------------
-      */
-
-      sessionStorage.removeItem(
-        PENDING_CARD_KEY
-      );
-
+      sessionStorage.setItem(PENDING_CARD_KEY, uid);
+      setCardUid(uid);
+      void checkCardAvailability(uid);
     };
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | UNREGISTERED CARD
-    |--------------------------------------------------------------------------
-    */
-
-    const handleIdentificationFailed = (
-      event: IdentificationFailedEvent
-    ) => {
-
-      console.log(
-        "📡 Registration page identification event:",
-        event
-      );
-
-
-      if (
-        event.code !==
-        "CARD_NOT_REGISTERED"
-      ) {
-
-        return;
-      }
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | Resolve UID
-      |--------------------------------------------------------------------------
-      */
-
-      const uid =
-        event.cardUid ||
-        event.data?.cardUid ||
-        "";
-
-
-      console.log(
-        "💳 Registration page received UID:",
-        uid
-      );
-
-
-      if (!uid) {
-
-        setCardStatus(
-          "ERROR"
-        );
-
-
-        setCardMessage(
-          "Card detected, but the NFC reader did not provide a card ID."
-        );
-
-
-        setErrorMessage(
-          "Unable to read the MedCard ID."
-        );
-
-
-        return;
-      }
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | Save UID
-      |--------------------------------------------------------------------------
-      */
-
-      sessionStorage.setItem(
-        PENDING_CARD_KEY,
-        uid
-      );
-
-
-      setCardUid(
-        uid
-      );
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | Check duplicate
-      |--------------------------------------------------------------------------
-      */
-
-      void checkCardAvailability(
-        uid
-      );
-
-    };
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | REGISTER LISTENERS
-    |--------------------------------------------------------------------------
-    */
-
-    socket.on(
-      "connect",
-      handleConnect
-    );
-
-
-    socket.on(
-      "connect_error",
-      handleConnectError
-    );
-
-
-    socket.on(
-      "patient:identified",
-      handlePatientIdentified
-    );
-
-
-    socket.on(
-      "card:identification-failed",
-      handleIdentificationFailed
-    );
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | CLEANUP
-    |--------------------------------------------------------------------------
-    */
+    socket.on("connect", handleConnect);
+    socket.on("connect_error", handleConnectError);
+    socket.on("patient:identified", handlePatientIdentified);
+    socket.on("card:identification-failed", handleIdentificationFailed);
 
     return () => {
-
-      console.log(
-        "🧹 Closing registration NFC listener..."
-      );
-
-
-      socket.off(
-        "connect",
-        handleConnect
-      );
-
-
-      socket.off(
-        "connect_error",
-        handleConnectError
-      );
-
-
-      socket.off(
-        "patient:identified",
-        handlePatientIdentified
-      );
-
-
-      socket.off(
-        "card:identification-failed",
-        handleIdentificationFailed
-      );
-
-
+      socket.off("connect", handleConnect);
+      socket.off("connect_error", handleConnectError);
+      socket.off("patient:identified", handlePatientIdentified);
+      socket.off("card:identification-failed", handleIdentificationFailed);
       socket.disconnect();
-
     };
-
   }, []);
 
-
-  /*
-  |--------------------------------------------------------------------------
-  | FORM UPDATE
-  |--------------------------------------------------------------------------
-  */
-
-  const updateField = (
-    field: keyof PatientForm,
-    value: string
-  ) => {
-
-    setForm(
-      previous => ({
-        ...previous,
-        [field]: value,
-      })
-    );
-
-
-    if (errorMessage) {
-
-      setErrorMessage("");
-
-    }
-
+  const updateField = (field: keyof PatientForm, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (errorMessage) setErrorMessage("");
   };
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | RESET CARD
-  |--------------------------------------------------------------------------
-  */
 
   const handleResetCard = () => {
-
-    sessionStorage.removeItem(
-      PENDING_CARD_KEY
-    );
-
-
-    setCardUid(
-      ""
-    );
-
-
-    setCardStatus(
-      "WAITING"
-    );
-
-
-    setCardMessage(
-      "Place the patient's MedCard on the NFC reader."
-    );
-
-
+    sessionStorage.removeItem(PENDING_CARD_KEY);
+    setCardUid("");
+    setCardStatus("WAITING");
+    setCardMessage("Place MedCard on reader");
     setErrorMessage("");
-
   };
 
-
-  /*
-  |--------------------------------------------------------------------------
-  | SUBMIT REGISTRATION
-  |--------------------------------------------------------------------------
-  */
-
-  const handleSubmit = async (
-    event: FormEvent<HTMLFormElement>
-  ) => {
-
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-
     setErrorMessage("");
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | CARD REQUIRED
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-      !cardUid
-    ) {
-
-      setErrorMessage(
-        "Please scan a MedCard before registering the patient."
-      );
-
-
+    if (!cardUid) {
+      setErrorMessage("Please scan a MedCard first");
       return;
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | CARD MUST BE AVAILABLE
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-      cardStatus !==
-      "AVAILABLE"
-    ) {
-
-      if (
-        cardStatus ===
-        "DUPLICATE"
-      ) {
-
-        setErrorMessage(
-          "This MedCard is already registered. Please use a new card."
-        );
-
-      } else {
-
-        setErrorMessage(
-          "Please wait until a valid, available MedCard has been detected."
-        );
-
-      }
-
-
+    if (cardStatus !== "AVAILABLE") {
+      setErrorMessage("Card is not available for registration");
       return;
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | FORM VALIDATION
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-      !form.firstName.trim()
-    ) {
-
-      setErrorMessage(
-        "First name is required."
-      );
-
-
+    if (!form.firstName.trim() || !form.lastName.trim()) {
+      setErrorMessage("First and last name are required");
       return;
     }
 
-
-    if (
-      !form.lastName.trim()
-    ) {
-
-      setErrorMessage(
-        "Last name is required."
-      );
-
-
-      return;
-    }
-
-
-    setSubmitting(
-      true
-    );
-
+    setSubmitting(true);
 
     try {
+      const patientResponse = await axios.post(`${API_URL}/patients`, {
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        dateOfBirth: form.dateOfBirth || null,
+        gender: form.gender,
+        phone: form.phone.trim() || null,
+        email: form.email.trim() || null,
+      });
 
-      /*
-      |--------------------------------------------------------------------------
-      | STEP 1
-      | CREATE PATIENT
-      |--------------------------------------------------------------------------
-      */
+      const patient = patientResponse.data?.data;
+      if (!patient?.id) throw new Error("No patient ID returned");
 
-      console.log(
-        "👤 Creating patient..."
-      );
+      await axios.post(`${API_URL}/cards`, {
+        cardUid,
+        patientId: patient.id,
+      });
 
+      sessionStorage.removeItem(PENDING_CARD_KEY);
+      setSuccess(true);
 
-      const patientResponse =
-        await axios.post(
-          `${API_URL}/patients`,
-          {
-            firstName:
-              form.firstName.trim(),
-
-            lastName:
-              form.lastName.trim(),
-
-            dateOfBirth:
-              form.dateOfBirth ||
-              null,
-
-            gender:
-              form.gender,
-
-            phone:
-              form.phone.trim() ||
-              null,
-
-            email:
-              form.email.trim() ||
-              null,
-          }
-        );
-
-
-      const patient =
-        patientResponse.data?.data;
-
-
-      if (
-        !patient?.id
-      ) {
-
-        throw new Error(
-          "Patient was created but no patient ID was returned."
-        );
-
-      }
-
-
-      console.log(
-        "✅ Patient created:",
-        patient
-      );
-
-
-      setCreatedPatient(
-        patient
-      );
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | STEP 2
-      | LINK CARD
-      |--------------------------------------------------------------------------
-      */
-
-      console.log(
-        "💳 Linking card:",
-        cardUid
-      );
-
-
-      try {
-
-        await axios.post(
-          `${API_URL}/cards`,
-          {
-            cardUid,
-            patientId:
-              patient.id,
-          }
-        );
-
-      } catch (cardError: any) {
-
-        /*
-        |--------------------------------------------------------------------------
-        | DUPLICATE CARD RACE CONDITION
-        |--------------------------------------------------------------------------
-        |
-        | Even though we checked before submission,
-        | another workstation could have registered the card
-        | between our GET and POST.
-        |
-        | Backend 409 remains the final protection.
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-          cardError?.response?.status ===
-          409
-        ) {
-
-          throw new Error(
-            "This MedCard was registered by another workstation before it could be linked. The patient record was created, but this card cannot be assigned."
-          );
-
-        }
-
-
-        throw cardError;
-
-      }
-
-
-      console.log(
-        "✅ Card linked successfully."
-      );
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | CLEAR TEMPORARY UID
-      |--------------------------------------------------------------------------
-      */
-
-      sessionStorage.removeItem(
-        PENDING_CARD_KEY
-      );
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | SUCCESS
-      |--------------------------------------------------------------------------
-      */
-
-      setSuccess(
-        true
-      );
-
-
-      /*
-      |--------------------------------------------------------------------------
-      | PATIENT WORKSPACE
-      |--------------------------------------------------------------------------
-      */
-
-      window.setTimeout(() => {
-
-        navigate(
-          `/patients/${encodeURIComponent(
-            patient.id
-          )}`,
-          {
-            replace: true,
-          }
-        );
-
+      setTimeout(() => {
+        navigate(`/patients/${encodeURIComponent(patient.id)}`, { replace: true });
       }, 900);
-
     } catch (error: any) {
-
-      console.error(
-        "❌ Registration failed:",
-        error
-      );
-
-
-      setErrorMessage(
-        error?.response?.data?.message ||
-        error?.message ||
-        "Unable to register the patient and link the MedCard."
-      );
-
+      setErrorMessage(error?.response?.data?.message || error?.message || "Registration failed");
     } finally {
-
-      setSubmitting(
-        false
-      );
-
+      setSubmitting(false);
     }
-
   };
 
-
-  /*
-  |--------------------------------------------------------------------------
-  | SUCCESS SCREEN
-  |--------------------------------------------------------------------------
-  */
-
-  if (
-    success
-  ) {
-
+  if (success) {
     return (
-      <div
-        className="patient-registration-page"
-      >
-
-        <main
-          className="patient-registration-container"
-        >
-
-          <section
-            className="patient-registration-card"
-          >
-
-            <div
-              className="registration-success-icon"
-            >
-
-              <CheckCircle2
-                size={48}
-              />
-
-            </div>
-
-
-            <span className="eyebrow">
-              REGISTRATION COMPLETE
-            </span>
-
-
-            <h1>
-              Patient successfully registered
-            </h1>
-
-
-            <p>
-
-              The patient record has been created
-              and MedCard{" "}
-
-              <strong>
-                {cardUid}
-              </strong>{" "}
-
-              has been linked successfully.
-
-            </p>
-
-
-            {createdPatient && (
-
-              <div
-                className="registration-created-patient"
-              >
-
-                <UserRound
-                  size={20}
-                />
-
-
-                <div>
-
-                  <strong>
-
-                    {
-                      createdPatient.firstName
-                    }{" "}
-
-                    {
-                      createdPatient.lastName
-                    }
-
-                  </strong>
-
-
-                  {createdPatient.patientNumber && (
-
-                    <span>
-
-                      {
-                        createdPatient.patientNumber
-                      }
-
-                    </span>
-
-                  )}
-
-                </div>
-
-              </div>
-
-            )}
-
-
-            <div
-              className="registration-loading"
-            >
-
-              <LoaderCircle
-                size={18}
-                className="spin"
-              />
-
-
-              Opening patient workspace...
-
-            </div>
-
-          </section>
-
-        </main>
-
-      </div>
+      <AppLayout pageTitle="Patient Registration">
+        <div className="bg-white border border-border rounded-lg p-6 text-center">
+          <CheckCircle2 size={48} className="text-teal mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-navy mb-2">Registration Complete</h2>
+          <p className="text-body-text">Card {cardUid} linked successfully</p>
+          <div className="flex items-center justify-center gap-2 mt-4 text-body-text">
+            <LoaderCircle size={16} className="animate-spin" />
+            Opening patient file...
+          </div>
+        </div>
+      </AppLayout>
     );
-
   }
 
-
-  /*
-  |--------------------------------------------------------------------------
-  | CARD STATUS UI
-  |--------------------------------------------------------------------------
-  */
-
-  const cardIsWaiting =
-    cardStatus ===
-    "WAITING";
-
-
-  const cardIsChecking =
-    cardStatus ===
-    "CHECKING";
-
-
-  const cardIsAvailable =
-    cardStatus ===
-    "AVAILABLE";
-
-
-  const cardIsDuplicate =
-    cardStatus ===
-    "DUPLICATE";
-
-
-  /*
-  |--------------------------------------------------------------------------
-  | MAIN PAGE
-  |--------------------------------------------------------------------------
-  */
-
   return (
-    <div
-      className="patient-registration-page"
+    <AppLayout
+      pageTitle="Patient Registration"
+      actionButton={{
+        label: "Back",
+        onClick: () => navigate("/dashboard"),
+        icon: <ArrowLeft size={15} />,
+      }}
     >
-
-      {/* =====================================================
-          HEADER
-      ====================================================== */}
-
-      <header
-        className="patient-registration-header"
-      >
-
-        <button
-          type="button"
-          className="back-button"
-          onClick={() =>
-            navigate(
-              "/dashboard"
-            )
-          }
-        >
-
-          <ArrowLeft
-            size={18}
-          />
-
-          Back to dashboard
-
-        </button>
-
-
-        <div
-          className="registration-brand"
-        >
-
-          <div
-            className="brand-mark small"
-          >
-
-            <Activity
-              size={20}
-            />
-
-          </div>
-
-
-          <div>
-
-            <strong>
-              Med<span>Card</span>
-            </strong>
-
-
-            <small>
-              Patient Registration
-            </small>
-
-          </div>
-
-        </div>
-
-      </header>
-
-
-      {/* =====================================================
-          MAIN
-      ====================================================== */}
-
-      <main
-        className="patient-registration-container"
-      >
-
-        <div
-          className="patient-registration-heading"
-        >
-
-          <span className="eyebrow">
-            NEW PATIENT
-          </span>
-
-
-          <h1>
-            Register patient
-          </h1>
-
-
-          <p>
-            Register a new patient and securely
-            assign a MedCard to their record.
-          </p>
-
-        </div>
-
-
-        {/* =====================================================
-            NFC SCANNER
-        ====================================================== */}
-
-        <section
-          className={`registration-nfc-card ${
-            cardIsDuplicate
-              ? "duplicate"
-              : cardIsAvailable
-              ? "available"
-              : ""
-          }`}
-        >
-
-          <div
-            className="registration-nfc-visual"
-          >
-
-            {cardIsChecking ? (
-
-              <LoaderCircle
-                size={32}
-                className="spin"
-              />
-
-            ) : cardIsDuplicate ? (
-
-              <AlertCircle
-                size={32}
-              />
-
-            ) : cardIsAvailable ? (
-
-              <CheckCircle2
-                size={32}
-              />
-
-            ) : (
-
-              <Wifi
-                size={32}
-              />
-
-            )}
-
-          </div>
-
-
-          <div
-            className="registration-nfc-content"
-          >
-
-            <span
-              className="registration-nfc-label"
-            >
-
-              {cardIsDuplicate
-                ? "CARD ALREADY REGISTERED"
-                : cardIsAvailable
-                ? "MEDCARD READY"
-                : cardIsChecking
-                ? "VERIFYING CARD"
-                : "MEDCARD SCANNER"}
-
-            </span>
-
-
-            <h2>
-
-              {cardIsWaiting
-                ? "Place MedCard on reader"
-
-                : cardIsChecking
-                ? "Checking MedCard..."
-
-                : cardIsAvailable
-                ? "MedCard available"
-
-                : cardIsDuplicate
-                ? "This card is already registered"
-
-                : "Card verification failed"}
-
-            </h2>
-
-
-            <p>
-              {cardMessage}
-            </p>
-
+      <div className="space-y-4">
+        {/* Card Scanner */}
+        <div className={`bg-white border rounded-lg p-3 ${
+          cardStatus === "DUPLICATE" ? "border-red-300" :
+          cardStatus === "AVAILABLE" ? "border-green-300" :
+          "border-border"
+        }`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full border-2 border-teal/30 flex items-center justify-center bg-pale-cyan">
+                {cardStatus === "CHECKING" ? (
+                  <LoaderCircle size={16} className="text-teal animate-spin" />
+                ) : cardStatus === "DUPLICATE" ? (
+                  <AlertCircle size={16} className="text-red-500" />
+                ) : cardStatus === "AVAILABLE" ? (
+                  <CheckCircle2 size={16} className="text-green-500" />
+                ) : (
+                  <Wifi size={16} className="text-teal" />
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-navy">
+                  {cardStatus === "WAITING" ? "Tap MedCard" :
+                   cardStatus === "CHECKING" ? "Verifying..." :
+                   cardStatus === "AVAILABLE" ? "Card Ready" :
+                   cardStatus === "DUPLICATE" ? "Card Registered" :
+                   "Error"}
+                </p>
+                <p className="text-xs text-body-text">{cardMessage}</p>
+              </div>
+            </div>
 
             {cardUid && (
-
-              <div
-                className="registration-card-uid"
-              >
-
-                <CreditCard
-                  size={16}
-                />
-
-
-                <span>
-                  Card ID
-                </span>
-
-
-                <strong>
-                  {cardUid}
-                </strong>
-
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-section-tint rounded text-xs">
+                <CreditCard size={12} />
+                <span className="font-mono">{cardUid}</span>
               </div>
-
             )}
 
-          </div>
-
-
-          <div
-            className="registration-nfc-actions"
-          >
-
-            {cardIsDuplicate && (
-
+            {cardStatus === "DUPLICATE" && (
               <button
                 type="button"
-                onClick={
-                  handleResetCard
-                }
+                onClick={handleResetCard}
+                className="text-xs text-teal hover:underline"
               >
-
-                <RefreshCw
-                  size={16}
-                />
-
-                Scan another card
-
+                Scan another
               </button>
-
             )}
-
-
-            {cardIsAvailable && (
-
-              <div
-                className="registration-card-ready"
-              >
-
-                <CheckCircle2
-                  size={17}
-                />
-
-                Ready to register
-
-              </div>
-
-            )}
-
           </div>
-
-        </section>
-
-
-        {/* =====================================================
-            ERROR
-        ====================================================== */}
+        </div>
 
         {errorMessage && (
-
-          <div
-            className="registration-error"
-          >
-
-            <AlertCircle
-              size={18}
-            />
-
-
-            <span>
-              {errorMessage}
-            </span>
-
+          <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <AlertCircle size={14} />
+            <span>{errorMessage}</span>
           </div>
-
         )}
 
-
-        {/* =====================================================
-            PATIENT FORM
-        ====================================================== */}
-
-        <form
-          className="patient-registration-form"
-          onSubmit={
-            handleSubmit
-          }
-        >
-
-          <section
-            className="registration-form-section"
-          >
-
-            <div
-              className="registration-section-heading"
-            >
-
-              <UserRound
-                size={19}
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="bg-white border border-border rounded-lg p-4 space-y-4">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-navy mb-1">First name</label>
+              <input
+                type="text"
+                placeholder="First name"
+                value={form.firstName}
+                onChange={(e) => updateField("firstName", e.target.value)}
+                disabled={submitting}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:border-teal"
               />
-
-
-              <div>
-
-                <h2>
-                  Patient information
-                </h2>
-
-
-                <p>
-                  Enter the patient's basic
-                  demographic information.
-                </p>
-
-              </div>
-
             </div>
-
-
-            <div
-              className="registration-form-grid"
-            >
-
-              {/* =================================================
-                  FIRST NAME
-              ================================================== */}
-
-              <div
-                className="registration-field"
-              >
-
-                <label>
-                  First name
-                </label>
-
-
-                <div
-                  className="registration-input"
-                >
-
-                  <UserRound
-                    size={17}
-                  />
-
-
-                  <input
-                    type="text"
-                    placeholder="Enter first name"
-                    value={
-                      form.firstName
-                    }
-                    onChange={
-                      event =>
-                        updateField(
-                          "firstName",
-                          event.target.value
-                        )
-                    }
-                    disabled={
-                      submitting
-                    }
-                  />
-
-                </div>
-
-              </div>
-
-
-              {/* =================================================
-                  LAST NAME
-              ================================================== */}
-
-              <div
-                className="registration-field"
-              >
-
-                <label>
-                  Last name
-                </label>
-
-
-                <div
-                  className="registration-input"
-                >
-
-                  <UserRound
-                    size={17}
-                  />
-
-
-                  <input
-                    type="text"
-                    placeholder="Enter last name"
-                    value={
-                      form.lastName
-                    }
-                    onChange={
-                      event =>
-                        updateField(
-                          "lastName",
-                          event.target.value
-                        )
-                    }
-                    disabled={
-                      submitting
-                    }
-                  />
-
-                </div>
-
-              </div>
-
-
-              {/* =================================================
-                  DATE OF BIRTH
-              ================================================== */}
-
-              <div
-                className="registration-field"
-              >
-
-                <label>
-                  Date of birth
-                </label>
-
-
-                <div
-                  className="registration-input"
-                >
-
-                  <CalendarDays
-                    size={17}
-                  />
-
-
-                  <input
-                    type="date"
-                    value={
-                      form.dateOfBirth
-                    }
-                    onChange={
-                      event =>
-                        updateField(
-                          "dateOfBirth",
-                          event.target.value
-                        )
-                    }
-                    disabled={
-                      submitting
-                    }
-                  />
-
-                </div>
-
-              </div>
-
-
-              {/* =================================================
-                  GENDER
-              ================================================== */}
-
-              <div
-                className="registration-field"
-              >
-
-                <label>
-                  Gender
-                </label>
-
-
-                <div
-                  className="registration-input"
-                >
-
-                  <UserRound
-                    size={17}
-                  />
-
-
-                  <select
-                    value={
-                      form.gender
-                    }
-                    onChange={
-                      event =>
-                        updateField(
-                          "gender",
-                          event.target.value
-                        )
-                    }
-                    disabled={
-                      submitting
-                    }
-                  >
-
-                    <option value="UNKNOWN">
-                      Prefer not to say
-                    </option>
-
-                    <option value="MALE">
-                      Male
-                    </option>
-
-                    <option value="FEMALE">
-                      Female
-                    </option>
-
-                    <option value="OTHER">
-                      Other
-                    </option>
-
-                  </select>
-
-                </div>
-
-              </div>
-
-
-              {/* =================================================
-                  PHONE
-              ================================================== */}
-
-              <div
-                className="registration-field"
-              >
-
-                <label>
-                  Phone number
-                </label>
-
-
-                <div
-                  className="registration-input"
-                >
-
-                  <Phone
-                    size={17}
-                  />
-
-
-                  <input
-                    type="tel"
-                    placeholder="+250 7XX XXX XXX"
-                    value={
-                      form.phone
-                    }
-                    onChange={
-                      event =>
-                        updateField(
-                          "phone",
-                          event.target.value
-                        )
-                    }
-                    disabled={
-                      submitting
-                    }
-                  />
-
-                </div>
-
-              </div>
-
-
-              {/* =================================================
-                  EMAIL
-              ================================================== */}
-
-              <div
-                className="registration-field"
-              >
-
-                <label>
-                  Email address
-                </label>
-
-
-                <div
-                  className="registration-input"
-                >
-
-                  <Mail
-                    size={17}
-                  />
-
-
-                  <input
-                    type="email"
-                    placeholder="patient@example.com"
-                    value={
-                      form.email
-                    }
-                    onChange={
-                      event =>
-                        updateField(
-                          "email",
-                          event.target.value
-                        )
-                    }
-                    disabled={
-                      submitting
-                    }
-                  />
-
-                </div>
-
-              </div>
-
-            </div>
-
-          </section>
-
-
-          {/* =====================================================
-              CARD LINKING
-          ====================================================== */}
-
-          <section
-            className="registration-link-section"
-          >
-
-            <div
-              className="registration-section-heading"
-            >
-
-              <CreditCard
-                size={19}
+            <div>
+              <label className="block text-xs font-semibold text-navy mb-1">Last name</label>
+              <input
+                type="text"
+                placeholder="Last name"
+                value={form.lastName}
+                onChange={(e) => updateField("lastName", e.target.value)}
+                disabled={submitting}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:border-teal"
               />
-
-
-              <div>
-
-                <h2>
-                  MedCard assignment
-                </h2>
-
-
-                <p>
-                  The detected card will be
-                  permanently linked to this patient.
-                </p>
-
-              </div>
-
             </div>
-
-
-            <div
-              className="registration-card-id"
-            >
-
-              <span>
-                Detected Card
-              </span>
-
-
-              <strong>
-                {cardUid ||
-                  "Waiting for NFC card..."}
-              </strong>
-
-            </div>
-
-
-            <div
-              className="registration-no-second-tap"
-            >
-
-              <ShieldCheck
-                size={17}
+            <div>
+              <label className="block text-xs font-semibold text-navy mb-1">Date of birth</label>
+              <input
+                type="date"
+                value={form.dateOfBirth}
+                onChange={(e) => updateField("dateOfBirth", e.target.value)}
+                disabled={submitting}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:border-teal"
               />
-
-
-              <span>
-                The card is captured automatically
-                by the NFC reader. No manual UID
-                entry is required.
-              </span>
-
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-navy mb-1">Gender</label>
+              <select
+                value={form.gender}
+                onChange={(e) => updateField("gender", e.target.value)}
+                disabled={submitting}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:border-teal"
+              >
+                <option value="UNKNOWN">Prefer not to say</option>
+                <option value="MALE">Male</option>
+                <option value="FEMALE">Female</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-navy mb-1">Phone</label>
+              <input
+                type="tel"
+                placeholder="+250 7XX XXX XXX"
+                value={form.phone}
+                onChange={(e) => updateField("phone", e.target.value)}
+                disabled={submitting}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:border-teal"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-navy mb-1">Email</label>
+              <input
+                type="email"
+                placeholder="patient@example.com"
+                value={form.email}
+                onChange={(e) => updateField("email", e.target.value)}
+                disabled={submitting}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:border-teal"
+              />
+            </div>
+          </div>
 
-          </section>
+          <div className="flex items-center gap-2 px-3 py-2 bg-section-tint rounded-lg text-xs text-body-text">
+            <CreditCard size={12} />
+            <span>Card: {cardUid || "Waiting for card..."}</span>
+          </div>
 
-
-          {/* =====================================================
-              ACTIONS
-          ====================================================== */}
-
-          <div
-            className="registration-actions"
-          >
-
+          <div className="flex gap-3">
             <button
               type="button"
-              className="registration-cancel"
-              onClick={() =>
-                navigate(
-                  "/dashboard"
-                )
-              }
-              disabled={
-                submitting
-              }
+              onClick={() => navigate("/dashboard")}
+              disabled={submitting}
+              className="flex-1 px-4 py-2 text-sm font-semibold text-navy border border-border rounded-lg hover:bg-section-tint transition-colors"
             >
-
               Cancel
-
             </button>
-
-
             <button
               type="submit"
-              className="registration-submit"
-              disabled={
-                submitting ||
-                !cardIsAvailable
-              }
+              disabled={submitting || cardStatus !== "AVAILABLE"}
+              className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-navy rounded-lg hover:bg-mid-blue transition-colors disabled:opacity-50"
             >
-
               {submitting ? (
-
                 <>
-
-                  <LoaderCircle
-                    size={18}
-                    className="spin"
-                  />
-
+                  <LoaderCircle size={14} className="animate-spin mr-2" />
                   Registering...
-
                 </>
-
               ) : (
-
                 <>
-
-                  <UserRoundPlus
-                    size={18}
-                  />
-
-                  Register patient & link card
-
+                  <UserRoundPlus size={14} className="mr-2" />
+                  Register
                 </>
-
               )}
-
             </button>
-
           </div>
-
-
-          {/* =====================================================
-              SECURITY
-          ====================================================== */}
-
-          <div
-            className="registration-security"
-          >
-
-            <ShieldCheck
-              size={17}
-            />
-
-
-            <span>
-              Patient information and card
-              assignments are handled securely
-              within the MedCard clinical system.
-            </span>
-
-          </div>
-
         </form>
-
-      </main>
-
-    </div>
+      </div>
+    </AppLayout>
   );
 }
-
-
-export default PatientRegistrationPage;

@@ -8,9 +8,9 @@ export function Contact() {
           <div className="md:col-span-1">
             <div className="flex items-center gap-3 mb-4">
               <img
-                src="/favicon.svg"
+                src="/medcard-logo.svg"
                 alt="MedCard"
-                className="h-8 w-8 brightness-0 invert"
+                className="h-8 w-auto brightness-0 invert"
               />
               <div className="flex flex-col">
                 <span className="text-white font-bold text-lg leading-none">MedCard</span>

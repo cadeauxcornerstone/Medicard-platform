@@ -8,7 +8,7 @@ const iconMap = {
   Users,
 };
 
-export function WhyMedicard() {
+export function WhyMedCard() {
   return (
     <section className="scroll-mt-[72px] md:scroll-mt-[88px] py-16 md:py-24 bg-section-tint">
       <div className="max-w-[1280px] mx-auto px-5 md:px-10 lg:px-20">
@@ -22,7 +22,7 @@ export function WhyMedicard() {
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {landingConfig.whyMedicard.map((item) => {
+          {landingConfig.whyMedCard.map((item) => {
             const Icon = iconMap[item.icon as keyof typeof iconMap];
             return (
               <div key={item.title} className="text-center">

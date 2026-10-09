@@ -12,7 +12,7 @@ export const landingConfig = {
     links: [
       { label: "About", href: "#about" },
       { label: "Services", href: "#services" },
-      { label: "Patient Vault", href: "#patient-vault" },
+      { label: "Patient Vault", href: "/patient-vault" },
       { label: "Contact", href: "#contact" },
     ],
     cta: {
@@ -24,14 +24,14 @@ export const landingConfig = {
   hero: {
     eyebrow: "Technology company in Kigali, Rwanda",
     headline: "Technology connecting people and possibilities.",
-    description: "Medicard builds NFC, manufacturing and data solutions that connect people, information and services across healthcare, education and business.",
+    description: "MedCard builds NFC, manufacturing and data solutions that connect people, information and services across healthcare, education and business.",
     primaryCta: {
       label: "Explore Services",
       href: "#services",
     },
     secondaryCta: {
       label: "Patient Vault",
-      href: "#patient-vault",
+      href: "/patient-vault",
     },
   },
   
@@ -46,10 +46,10 @@ export const landingConfig = {
   },
   
   about: {
-    eyebrow: "About Medicard",
+    eyebrow: "About MedCard",
     headlinePart1: "One company.",
     headlinePart2: "Many ways to connect.",
-    description: "Medicard is a technology company. We design and deliver solutions that connect people, information and services, from healthcare identity to education, business and precision manufacturing.",
+    description: "MedCard is a technology company. We design and deliver solutions that connect people, information and services, from healthcare identity to education, business and precision manufacturing.",
   },
   
   services: {
@@ -110,7 +110,7 @@ export const landingConfig = {
       {
         name: "Basic Vault",
         subtitle: "For essential record retrieval",
-        price: "1,000",
+        price: "100",
         period: "RWF /mo",
         description: null,
         features: [
@@ -125,7 +125,7 @@ export const landingConfig = {
       {
         name: "Premium Vault",
         subtitle: "For complete data storage and linkage",
-        price: "5,000",
+        price: "150",
         period: "RWF /mo",
         description: null,
         features: [
@@ -140,7 +140,7 @@ export const landingConfig = {
     ],
   },
   
-  whyMedicard: [
+  whyMedCard: [
     {
       icon: "Cpu",
       title: "Technology",

@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: medicard-backend
+    env: node
+    region: frankfurt
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm run dev
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: medicard-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+        length: 32
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: BREVO_SMTP_KEY
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER
+        sync: false
+      - key: XENTRIPAY_API_KEY
+        sync: false
+      - key: XENTRIPAY_BASE_URL
+        value: https://merchant.test.xentripay.com
+
+databases:
+  - name: medicard-db
+    databaseName: medicard_db
+    user: medicard_db_user

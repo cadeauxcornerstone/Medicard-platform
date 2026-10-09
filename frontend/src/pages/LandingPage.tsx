@@ -87,7 +87,7 @@ function LandingPage() {
               type="button"
               className="landing-secondary-button"
               style={{ minHeight: "37px", padding: "0 12px" }}
-              onClick={() => navigate("/dashboard")}
+              onClick={() => navigate("/login")}
             >
               Live Dashboard
             </button>
@@ -224,7 +224,7 @@ function LandingPage() {
                 <button
                   type="button"
                   className="landing-primary-button"
-                  onClick={() => navigate("/dashboard")}
+                  onClick={() => navigate("/login")}
                 >
                   Launch Interactive Demo
                   <ArrowRight size={17} />
@@ -234,7 +234,7 @@ function LandingPage() {
                   type="button"
                   className="landing-secondary-button"
                   style={{ display: "inline-flex", alignItems: "center", gap: "7px" }}
-                  onClick={() => navigate("/nfc")}
+                  onClick={() => navigate("/login")}
                 >
                   <Wifi size={15} />
                   <span>Scan MedCard</span>

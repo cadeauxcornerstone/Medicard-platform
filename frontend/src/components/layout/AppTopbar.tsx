@@ -6,7 +6,6 @@ import {
   Plus,
   X,
   CheckCircle2,
-  Wallet,
 } from "lucide-react";
 import {
   useState,
@@ -41,17 +40,13 @@ export default function AppTopbar({
   pageSubtitle,
   onToggleMobileMenu,
   actionButton,
+  secondaryActionButton,
 }: AppTopbarProps) {
   const navigate = useNavigate();
 
-  const [searchFocused, setSearchFocused] =
-    useState(false);
-
-  const [searchQuery, setSearchQuery] =
-    useState("");
-
-  const [showNotifications, setShowNotifications] =
-    useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const notifications = [
     {
@@ -74,9 +69,7 @@ export default function AppTopbar({
     },
   ];
 
-  const handleSearchSubmit = (
-    e: FormEvent
-  ) => {
+  const handleSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
 
     if (searchQuery.trim()) {
@@ -89,18 +82,13 @@ export default function AppTopbar({
   };
 
   return (
-    <header className="app-topbar">
+    <header className="h-16 md:h-20 bg-white border-b border-border flex items-center gap-4 px-4 md:px-6">
 
-      {/* =====================================================
-          LEFT SIDE
-      ===================================================== */}
-
-      <div className="topbar-left">
-
+      <div className="flex items-center gap-4 flex-1">
         {onToggleMobileMenu && (
           <button
             type="button"
-            className="topbar-hamburger-btn"
+            className="md:hidden p-2 hover:bg-section-tint rounded-full transition-colors"
             onClick={onToggleMobileMenu}
             aria-label="Open sidebar menu"
           >
@@ -108,45 +96,28 @@ export default function AppTopbar({
           </button>
         )}
 
-        <div className="topbar-title-block">
-
-          <div className="topbar-eyebrow">
-            <span className="eyebrow-dot" />
-            <span>
-              {currentRole} Workspace
-            </span>
-          </div>
-
-          <h1 className="topbar-page-title">
+        <div className="hidden md:block">
+          <h1 className="text-lg md:text-xl font-bold text-navy">
             {pageTitle}
           </h1>
-
           {pageSubtitle && (
-            <span className="topbar-page-subtitle">
+            <span className="text-xs text-body-text">
               {pageSubtitle}
             </span>
           )}
-
         </div>
       </div>
 
-
-      {/* =====================================================
-          CENTER SEARCH
-      ===================================================== */}
-
-      <div className="topbar-center">
-
+      <div className="hidden lg:block flex-1 max-w-md">
         <form
-          className={`topbar-search-form ${
-            searchFocused ? "focused" : ""
+          className={`relative flex items-center border rounded-xl transition-colors ${
+            searchFocused ? "border-teal ring-2 ring-teal/20" : "border-border"
           }`}
           onSubmit={handleSearchSubmit}
         >
-
           <Search
-            size={16}
-            className="search-icon"
+            size={18}
+            className="absolute left-3 text-body-text"
           />
 
           <input
@@ -162,119 +133,68 @@ export default function AppTopbar({
             onBlur={() =>
               setSearchFocused(false)
             }
+            className="w-full pl-10 pr-10 py-2.5 bg-transparent text-navy placeholder:text-muted-text focus:outline-none text-sm"
             aria-label="Search patient records"
           />
 
           {searchQuery && (
             <button
               type="button"
-              className="search-clear-btn"
+              className="absolute right-3 p-1 hover:bg-section-tint rounded-full transition-colors"
               onClick={() =>
                 setSearchQuery("")
               }
             >
-              <X size={14} />
+              <X size={14} className="text-body-text" />
             </button>
           )}
-
         </form>
-
       </div>
 
-
-      {/* =====================================================
-          RIGHT SIDE
-      ===================================================== */}
-
-      <div className="topbar-right">
-
-        {/* -------------------------------------------------
-            PRIMARY PAGE ACTION
-        ------------------------------------------------- */}
-
+      <div className="flex items-center gap-2 md:gap-3">
         {actionButton && (
           <button
             type="button"
-            className="topbar-primary-action-btn"
+            className="hidden lg:flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-navy rounded-full hover:bg-mid-blue transition-colors"
             onClick={actionButton.onClick}
           >
-            {actionButton.icon || (
-              <Plus size={15} />
-            )}
-
-            <span>
-              {actionButton.label}
-            </span>
+            {actionButton.icon || <Plus size={15} />}
+            <span>{actionButton.label}</span>
           </button>
         )}
 
-
-        {/* -------------------------------------------------
-            RECEPTIONIST ONLY — TOP UP WALLET
-            This does NOT appear in the sidebar.
-        ------------------------------------------------- */}
-
-        {currentRole === "Reception" && (
+        {secondaryActionButton && (
           <button
             type="button"
-            className="topbar-primary-action-btn"
-            onClick={() => navigate("/top-up")}
-            title="Top up patient MedCard wallet"
+            className="hidden lg:flex items-center gap-2 px-4 py-2 text-sm font-semibold text-navy border-2 border-navy rounded-full hover:bg-navy hover:text-white transition-colors"
+            onClick={secondaryActionButton.onClick}
           >
-            <Wallet size={15} />
-
-            <span>
-              Top Up Wallet
-            </span>
+            {secondaryActionButton.icon}
+            <span>{secondaryActionButton.label}</span>
           </button>
         )}
-
-
-        {/* -------------------------------------------------
-            NFC SCANNER
-        ------------------------------------------------- */}
 
         <button
           type="button"
-          className="topbar-nfc-btn"
+          className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-semibold text-teal border-2 border-teal rounded-full hover:bg-teal hover:text-white transition-colors"
           onClick={() => navigate("/nfc")}
           title="Open NFC Patient Tap Scanner"
         >
-          <Wifi
-            size={15}
-            className="nfc-pulse-icon"
-          />
-
-          <span className="nfc-btn-text">
-            Scan MedCard
-          </span>
+          <Wifi size={15} className="animate-pulse" />
+          <span>Scan MedCard</span>
         </button>
 
-
-        {/* -------------------------------------------------
-            LIVE SYSTEM STATUS
-        ------------------------------------------------- */}
-
-        <div className="topbar-status-pill">
-
-          <span className="live-indicator-dot" />
-
-          <span className="status-text">
+        <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-pale-cyan rounded-full">
+          <span className="w-2 h-2 rounded-full bg-teal animate-pulse" />
+          <span className="text-xs font-semibold text-teal">
             Live Sync
           </span>
-
         </div>
 
-
-        {/* -------------------------------------------------
-            NOTIFICATIONS
-        ------------------------------------------------- */}
-
-        <div className="topbar-notif-wrapper">
-
+        <div className="relative">
           <button
             type="button"
-            className="topbar-icon-btn"
+            className="relative p-2 hover:bg-section-tint rounded-full transition-colors"
             onClick={() =>
               setShowNotifications(
                 !showNotifications
@@ -282,117 +202,72 @@ export default function AppTopbar({
             }
             aria-label="View notifications"
           >
-            <Bell size={17} />
-
-            <span className="notif-badge">
+            <Bell size={18} className="text-body-text" />
+            <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
               3
             </span>
           </button>
 
-
           {showNotifications && (
-            <div className="notifications-dropdown">
-
-              <div className="notif-header">
-
-                <strong>
-                  Activity Feed
-                </strong>
-
-                <span className="notif-count">
-                  3 new
-                </span>
-
+            <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-border rounded-xl shadow-lg overflow-hidden z-50">
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <strong className="text-navy">Activity Feed</strong>
+                <span className="text-xs font-semibold text-teal">3 new</span>
               </div>
 
-
-              <div className="notif-list">
-
+              <div className="max-h-64 overflow-y-auto">
                 {notifications.map((n) => (
                   <div
                     key={n.id}
-                    className="notif-item"
+                    className="p-4 border-b border-border hover:bg-section-tint transition-colors cursor-pointer"
                   >
-
-                    <div className="notif-item-icon">
-                      <CheckCircle2 size={15} />
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-pale-cyan rounded-full flex items-center justify-center flex-shrink-0">
+                        <CheckCircle2 size={14} className="text-teal" />
+                      </div>
+                      <div className="flex-1">
+                        <strong className="text-navy text-sm">{n.title}</strong>
+                        <p className="text-body-text text-xs">{n.desc}</p>
+                        <small className="text-muted-text text-xs">{n.time}</small>
+                      </div>
                     </div>
-
-                    <div className="notif-item-body">
-
-                      <strong>
-                        {n.title}
-                      </strong>
-
-                      <p>
-                        {n.desc}
-                      </p>
-
-                      <small>
-                        {n.time}
-                      </small>
-
-                    </div>
-
                   </div>
                 ))}
-
               </div>
 
-
-              <div className="notif-footer">
-
+              <div className="p-3 border-t border-border">
                 <button
                   type="button"
                   onClick={() =>
                     setShowNotifications(false)
                   }
+                  className="w-full text-sm font-semibold text-navy hover:text-teal transition-colors"
                 >
                   Close
                 </button>
-
               </div>
-
             </div>
           )}
-
         </div>
 
-
-        {/* -------------------------------------------------
-            USER PROFILE
-        ------------------------------------------------- */}
-
         <div
-          className="topbar-user-profile"
+          className="flex items-center gap-3 p-2 hover:bg-section-tint rounded-xl cursor-pointer transition-colors"
           onClick={() =>
             navigate("/settings")
           }
           title="Facility settings"
         >
-
-          <div className="topbar-avatar">
+          <div className="w-9 h-9 bg-pale-cyan rounded-full flex items-center justify-center font-bold text-navy text-sm">
             {currentRole
               .charAt(0)
               .toUpperCase()}
           </div>
-
-          <div className="topbar-user-info">
-
-            <strong className="user-name">
-              {currentRole} Staff
-            </strong>
-
-            <small className="user-facility">
-              KFH Kigali
-            </small>
-
+          <div className="hidden md:block">
+            <strong className="text-navy text-sm block">{currentRole} Staff</strong>
+            <small className="text-body-text text-xs">KFH Kigali</small>
           </div>
-
         </div>
-
       </div>
-
     </header>
   );
 }

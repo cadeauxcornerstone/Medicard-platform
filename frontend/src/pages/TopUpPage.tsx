@@ -61,7 +61,7 @@ interface TopUpHistoryRecord {
   status: string;
 }
 
-const SOCKET_URL = "http://localhost:5000";
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "https://medicard-platform.onrender.com";
 
 const PRESET_AMOUNTS = [5000, 10000, 20000, 50000];
 

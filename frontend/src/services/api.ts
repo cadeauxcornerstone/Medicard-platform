@@ -16,8 +16,8 @@ import axios from "axios";
 |--------------------------------------------------------------------------
 */
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1";
-export const SOCKET_URL   = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
+export const API_BASE_URL = import.meta.env.VITE_API_URL || "https://medicard-platform.onrender.com/api/v1";
+export const SOCKET_URL   = import.meta.env.VITE_SOCKET_URL || "https://medicard-platform.onrender.com";
 
 /**
  * Prototype context: used when no auth session exists.

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
-  Activity,
   LayoutDashboard,
   Users,
   Wifi,
@@ -77,10 +76,10 @@ export default function AppSidebar({
     },
     {
       label: "NFC Scanner",
-      path: "/nfc",
+      path: "/nfc/scan",
       icon: Wifi,
       badge: "Live",
-      badgeClass: "badge-pulse",
+      badgeClass: "animate-pulse",
     },
     {
       label: "Appointments",
@@ -123,45 +122,49 @@ export default function AppSidebar({
 
   const handleLogout = () => {
     localStorage.removeItem(CURRENT_ROLE_KEY);
+    localStorage.removeItem("medcard_authenticated");
+    localStorage.removeItem("medcard_auth_token");
+    localStorage.removeItem("medcard_user_data");
+    localStorage.removeItem("medcard_current_facility");
     navigate("/login");
   };
 
   return (
     <>
-      {/* Mobile Backdrop */}
       {isOpenMobile && (
         <div
-          className="sidebar-backdrop"
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={onCloseMobile}
           aria-hidden="true"
         />
       )}
 
       <aside
-        className={`app-sidebar ${isOpenMobile ? "mobile-open" : ""}`}
+        className={`fixed md:sticky top-0 left-0 z-50 h-screen w-72 bg-navy text-white flex flex-col transition-transform duration-300 ${
+          isOpenMobile ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
         aria-label="Application navigation"
       >
-        {/* Brand Header */}
-        <div className="sidebar-brand-wrapper">
+        <div className="p-4 border-b border-white/10">
           <div
-            className="sidebar-brand cursor-pointer"
+            className="flex items-center gap-3 cursor-pointer"
             onClick={() => handleNavigate("/dashboard")}
           >
-            <div className="brand-mark">
-              <Activity size={22} strokeWidth={2.4} />
-            </div>
-            <div className="brand-text">
-              <strong>
-                Med<span>Card</span>
-              </strong>
-              <small>Digital Health Grid</small>
+            <img
+              src="/medcard-logo.svg"
+              alt="MedCard"
+              className="h-10 w-auto"
+            />
+            <div>
+              <strong className="text-lg">MedCard</strong>
+              <small className="block text-xs text-soft-text-on-navy">Healthcare Technology</small>
             </div>
           </div>
 
           {onCloseMobile && (
             <button
               type="button"
-              className="sidebar-close-btn"
+              className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors"
               onClick={onCloseMobile}
               aria-label="Close sidebar"
             >
@@ -170,40 +173,41 @@ export default function AppSidebar({
           )}
         </div>
 
-        {/* Role Selector Badge (Interactive for Demo Presentations) */}
-        <div className="sidebar-role-selector">
+        <div className="p-4 border-b border-white/10">
           <div
-            className="role-selector-header"
+            className="flex items-center gap-3 p-3 bg-white/5 rounded-xl cursor-pointer hover:bg-white/10 transition-colors"
             onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
           >
-            <div className="role-avatar-mini">
+            <div className="w-10 h-10 bg-teal rounded-full flex items-center justify-center font-bold">
               {currentRole.charAt(0).toUpperCase()}
             </div>
-            <div className="role-meta">
-              <span className="role-tag">WORKSPACE ROLE</span>
-              <strong className="role-name">{currentRole}</strong>
+            <div className="flex-1">
+              <span className="text-xs font-semibold text-teal block">WORKSPACE ROLE</span>
+              <strong className="text-sm">{currentRole}</strong>
             </div>
             <ChevronDown
-              size={15}
-              className={`role-chevron ${roleDropdownOpen ? "open" : ""}`}
+              size={16}
+              className={`transition-transform ${roleDropdownOpen ? "rotate-180" : ""}`}
             />
           </div>
 
           {roleDropdownOpen && (
-            <div className="role-dropdown-menu">
-              <div className="dropdown-label">
-                <ArrowRightLeft size={11} /> Switch Workspace View
+            <div className="mt-2 p-3 bg-white/5 rounded-xl">
+              <div className="flex items-center gap-2 text-xs text-soft-text-on-navy mb-3">
+                <ArrowRightLeft size={11} />
+                <span>Switch Workspace View</span>
               </div>
               {roles.map((r) => (
                 <button
                   key={r}
                   type="button"
-                  className={`role-dropdown-item ${
-                    currentRole === r ? "active" : ""
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    currentRole === r
+                      ? "bg-teal text-navy"
+                      : "hover:bg-white/10"
                   }`}
                   onClick={() => handleRoleSelect(r)}
                 >
-                  <span className="role-item-dot" />
                   {r}
                 </button>
               ))}
@@ -211,11 +215,10 @@ export default function AppSidebar({
           )}
         </div>
 
-        {/* Main Navigation */}
-        <div className="sidebar-nav-container">
-          <span className="sidebar-nav-heading">CLINICAL WORKSPACES</span>
+        <div className="flex-1 overflow-y-auto p-4">
+          <span className="text-xs font-semibold text-soft-text-on-navy block mb-3">CLINICAL WORKSPACES</span>
 
-          <nav className="sidebar-nav-list">
+          <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive =
@@ -227,16 +230,24 @@ export default function AppSidebar({
                 <button
                   key={item.path}
                   type="button"
-                  className={`sidebar-nav-btn ${isActive ? "active" : ""}`}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                    isActive
+                      ? "bg-teal text-navy"
+                      : "hover:bg-white/10"
+                  }`}
                   onClick={() => handleNavigate(item.path)}
                 >
-                  <div className="nav-btn-content">
-                    <Icon size={19} className="nav-icon" />
+                  <div className="flex items-center gap-3">
+                    <Icon size={18} />
                     <span>{item.label}</span>
                   </div>
                   {item.badge && (
                     <span
-                      className={`nav-badge ${item.badgeClass || ""}`}
+                      className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                        isActive
+                          ? "bg-navy text-white"
+                          : "bg-pale-cyan text-teal"
+                      } ${item.badgeClass || ""}`}
                     >
                       {item.badge}
                     </span>
@@ -247,33 +258,30 @@ export default function AppSidebar({
           </nav>
         </div>
 
-        {/* Footer Navigation */}
-        <div className="sidebar-footer-nav">
+        <div className="p-4 border-t border-white/10 space-y-1">
           <button
             type="button"
-            className={`sidebar-nav-btn ${
-              location.pathname === "/settings" ? "active" : ""
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+              location.pathname === "/settings"
+                ? "bg-teal text-navy"
+                : "hover:bg-white/10"
             }`}
             onClick={() => handleNavigate("/settings")}
           >
-            <div className="nav-btn-content">
-              <Settings size={18} className="nav-icon" />
-              <span>Settings & Diagnostics</span>
-            </div>
+            <Settings size={18} />
+            <span>Settings & Diagnostics</span>
           </button>
 
           <button
             type="button"
-            className="sidebar-nav-btn logout"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold hover:bg-white/10 transition-colors text-red-300"
             onClick={handleLogout}
           >
-            <div className="nav-btn-content">
-              <LogOut size={18} className="nav-icon" />
-              <span>Sign Out</span>
-            </div>
+            <LogOut size={18} />
+            <span>Sign Out</span>
           </button>
 
-          <div className="sidebar-facility-tag">
+          <div className="flex items-center gap-2 px-3 py-2 text-xs text-soft-text-on-navy">
             <ShieldCheck size={14} />
             <span>King Faisal Hospital • Kigali</span>
           </div>

@@ -29,7 +29,7 @@ import {
   type Wallet as WalletType,
 } from "../services/api";
 
-const SOCKET_URL = "http://localhost:5000";
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "https://medicard-platform.onrender.com";
 
 interface PaymentIntent {
   id: string;

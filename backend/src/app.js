@@ -26,11 +26,16 @@ import pharmacyRoutes from "./routes/pharmacy.routes.js";
 import dispensingRoutes from "./routes/dispensing.routes.js";
 import encounterRoutes from "./routes/encounter.routes.js";
 import paymentIntentRoutes from "./routes/payment-intent.routes.js";
-
+import authRoutes from "./routes/auth.routes.js";
+import registrationRoutes from "./routes/registration.routes.js";
+import patientVaultRoutes from "./routes/patient-vault.routes.js";
 
 
 
 const app = express();
+
+// Render forwards requests through one proxy; trust its client IP for rate limiting.
+app.set("trust proxy", 1);
 
 /*
 |--------------------------------------------------------------------------
@@ -96,6 +101,12 @@ const limiter = rateLimit({
   standardHeaders: "draft-8",
   legacyHeaders: false,
 
+  // Skip rate limiting errors for Render
+  skip: (req) => {
+    // Allow Render health checks
+    return req.path === '/api/v1/health';
+  },
+
   message: {
     success: false,
     message: "Too many requests. Please try again shortly.",
@@ -117,6 +128,23 @@ app.get("/api/v1/health", (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+/*
+|--------------------------------------------------------------------------
+| AUTH ROUTES
+|--------------------------------------------------------------------------
+*/
+
+app.use("/api/v1/auth", authRoutes);
+
+/*
+|--------------------------------------------------------------------------
+| REGISTRATION ROUTES
+|--------------------------------------------------------------------------
+*/
+
+app.use("/api/v1/registration", registrationRoutes);
+app.use("/api/v1/vault", patientVaultRoutes);
 
 /*
 |--------------------------------------------------------------------------
